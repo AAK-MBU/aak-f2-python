@@ -13,16 +13,20 @@ from .errors import (
 )
 from .models import (
     Case,
+    CaseSearchHit,
     CollectionItem,
     Document,
     EnumerationItem,
     Link,
     Matter,
+    MatterSearchHit,
+    Party,
     PartyItem,
 )
 
 __all__ = [
     "Case",
+    "CaseSearchHit",
     "F2AccessDeniedError",
     "CollectionItem",
     "Document",
@@ -37,5 +41,7 @@ __all__ = [
     "F2NotFoundError",
     "Link",
     "Matter",
+    "MatterSearchHit",
+    "Party",
     "PartyItem",
 ]

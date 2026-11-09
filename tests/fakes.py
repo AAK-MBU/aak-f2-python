@@ -21,6 +21,13 @@ SERVICE_INDEX = {
     },
     f"{REL}matter-by-id": {"href": f"{BASE}/matters/{{id}}"},
     f"{REL}document-by-id": {"href": f"{BASE}/documents/{{id}}"},
+    f"{REL}case-search-filter": {"href": f"{BASE}/search/cases"},
+    f"{REL}matter-search-filter": {"href": f"{BASE}/search/matters"},
+    f"{REL}party-by-id": {"href": f"{BASE}/parties/{{id}}"},
+    f"{REL}party-by-cvrcpr-number": {
+        "href": f"{BASE}/parties/by-cvrcpr/{{cvrcpr}}?cvr_p={{cvr_p}}"
+    },
+    f"{REL}party-by-login": {"href": f"{BASE}/parties/by-login/{{login}}"},
 }
 
 

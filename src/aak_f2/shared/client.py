@@ -1,4 +1,4 @@
-"""``F2Client``: the shared client for reading F2 cases, matters and documents."""
+"""``F2Client``: the shared client for reading, searching and looking up F2 data."""
 
 from os import PathLike
 from pathlib import Path
@@ -7,9 +7,19 @@ from typing import Self
 import requests
 
 from ._http import Connection
+from ._service_index import expand_template, template_parameters
 from .config import F2Config
 from .errors import F2Error, F2LinkNotFoundError
-from .models import Case, CollectionItem, Document, Matter, parse_collection
+from .models import (
+    Case,
+    CaseSearchHit,
+    CollectionItem,
+    Document,
+    Matter,
+    MatterSearchHit,
+    Party,
+    parse_collection,
+)
 
 type CaseRef = Case | int | str
 type MatterRef = Matter | int | str
@@ -163,7 +173,126 @@ class F2Client:
             return None
         return self._stream_to_file(link.href, path)
 
+    # ------------------------------------------------------------------ search
+
+    def search_cases(
+        self,
+        *,
+        case_number: str | None = None,
+        case_id: int | str | None = None,
+        title: str | None = None,
+        cpr_number: str | None = None,
+        external_id: str | None = None,
+    ) -> list[CaseSearchHit]:
+        """Search cases by one or more properties (F2's filtered case search).
+
+        Only cases the F2 user has access to can be expected in the result, so
+        an empty result does not prove that no such case exists.
+
+        Args:
+            case_number: Case number, e.g. ``"2022 - 60"``.
+            case_id: Internal case ID.
+            title: Case title.
+            cpr_number: CPR/CVR number on the case.
+            external_id: Customer-specific external ID.
+
+        Raises:
+            ValueError: If no criterion is given.
+        """
+        params = {
+            "caseNumber": case_number,
+            "id": case_id,
+            "title": title,
+            "cprNumber": cpr_number,
+            "externalId": external_id,
+        }
+        rows = self._search("case-search-filter", params)
+        return [CaseSearchHit.from_row(row) for row in rows]
+
+    def search_matters(
+        self,
+        *,
+        matter_number: int | str | None = None,
+        matter_id: int | str | None = None,
+        title: str | None = None,
+        case_number: str | None = None,
+        cpr_number: str | None = None,
+    ) -> list[MatterSearchHit]:
+        """Search matters by one or more properties (F2's filtered matter search).
+
+        Only matters the F2 user has access to can be expected in the result,
+        so an empty result does not prove that no such matter exists.
+
+        Args:
+            matter_number: Public matter number.
+            matter_id: Internal matter ID.
+            title: Matter title.
+            case_number: Number of the case the matters belong to.
+            cpr_number: CPR/CVR number on the matter.
+
+        Raises:
+            ValueError: If no criterion is given.
+        """
+        params = {
+            "matterNumber": matter_number,
+            "id": matter_id,
+            "title": title,
+            "caseNumber": case_number,
+            "cprNumber": cpr_number,
+        }
+        rows = self._search("matter-search-filter", params)
+        return [MatterSearchHit.from_row(row) for row in rows]
+
+    # ------------------------------------------------------------------ parties
+
+    def get_party(self, party_id: int | str) -> Party:
+        """Return the party with internal ID ``party_id``."""
+        url = self._connection.index.expand("party-by-id", id=party_id)
+        return Party.from_element(self._connection.get_xml(url))
+
+    def get_party_by_cpr(self, cvrcpr: str, cvr_p: str | None = None) -> Party:
+        """Return the party with CPR or CVR number ``cvrcpr``.
+
+        Args:
+            cvrcpr: CPR or CVR number.
+            cvr_p: P-number, to pick one branch of a company.
+
+        Raises:
+            F2NotFoundError: If F2 has no such party.
+        """
+        url = self._connection.index.expand(
+            "party-by-cvrcpr-number", cvrcpr=cvrcpr, cvr_p=cvr_p
+        )
+        return Party.from_element(self._connection.get_xml(url))
+
+    def get_party_by_login(self, login: str) -> Party:
+        """Return the F2 user with login (initials) ``login``.
+
+        Raises:
+            F2NotFoundError: If F2 has no such user.
+        """
+        url = self._connection.index.expand("party-by-login", login=login)
+        return Party.from_element(self._connection.get_xml(url))
+
     # ------------------------------------------------------------------ helpers
+
+    def _search(
+        self, rel: str, criteria: dict[str, object]
+    ) -> list[dict[str, str | None]]:
+        """Run a filtered search and return the CSV rows.
+
+        The search resource is a plain URL taking query parameters. Should the
+        installation publish it as a URL template, the template parameters are
+        filled instead.
+        """
+        given = {k: str(v) for k, v in criteria.items() if v is not None and v != ""}
+        if not given:
+            raise ValueError("Give at least one search criterion")
+        href = self._connection.index.href(rel)
+        names = template_parameters(href)
+        url = expand_template(href, {name: given.get(name) for name in names})
+        query = {k: v for k, v in given.items() if k not in names}
+        return self._connection.get_csv(url, query)
 
     def _stream_to_file(self, url: str, path: str | PathLike[str]) -> Path:
         target = Path(path)

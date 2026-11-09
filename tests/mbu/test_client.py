@@ -6,7 +6,12 @@ from aak_f2.mbu import F2Client
 from aak_f2.shared import Case, Document
 from aak_f2.shared import F2Client as SharedF2Client
 from tests.fakes import BASE, make_config, make_response, standard_session
-from tests.fixtures import CASE_XML, DOCUMENT_WITHOUT_PDF_XML, DOCUMENT_XML
+from tests.fixtures import (
+    CASE_XML,
+    DOCUMENT_WITHOUT_PDF_XML,
+    DOCUMENT_XML,
+    EXTERNAL_PARTY_XML,
+)
 
 DOCUMENT_URL = f"{BASE}/documents/378054"
 
@@ -63,3 +68,24 @@ class GoCompatibilityTest(unittest.TestCase):
         session = standard_session()
         session.add("GET", DOCUMENT_URL, make_response(200, DOCUMENT_WITHOUT_PDF_XML))
         self.assertIsNone(client_with(session).convert_to_pdf("378054"))
+
+
+class ContactLookupTest(unittest.TestCase):
+    CPR_URL = f"{BASE}/parties/by-cvrcpr/311299-1234?cvr_p="
+
+    def test_found(self):
+        session = standard_session()
+        session.add("GET", self.CPR_URL, make_response(200, EXTERNAL_PARTY_XML))
+        contact = client_with(session).contact_lookup("311299-1234")
+        self.assertEqual(contact.full_name, "Søren Ærø")
+        self.assertEqual(contact.id, "400775")
+        self.assertEqual(contact.raw.party_number, 39938)
+
+    def test_not_found_gives_empty_result(self):
+        session = standard_session()
+        session.add(
+            "GET", self.CPR_URL, make_response(404, json_body={"Message": "No"})
+        )
+        contact = client_with(session).contact_lookup("311299-1234", site="x")
+        self.assertEqual((contact.full_name, contact.id), ("", ""))
+        self.assertIsNone(contact.raw)

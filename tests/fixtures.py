@@ -151,3 +151,52 @@ ERROR_XML = """\
   <ReasonCode>DossierCaseClosed</ReasonCode>
 </Error>
 """
+
+CASE_SEARCH_CSV = (
+    "Id,CaseNumber,Title,CprNumber,ExternalId,Created,Updated,alternate\r\n"
+    '"279666","2022 - 1172","Sag om Søren Ærø","311299-1234","P2103568",'
+    '"2022-03-29T11:00:58","2022-03-29T11:00:58","https://f2.example/rest/cases/279666"'
+    "\r\n"
+)
+
+MATTER_SEARCH_CSV = (
+    "Id,MatterNumber,Title,CaseNumber,CprNumber,Type,AccessLevel,Deadline,"
+    "Archived,Status,Created,Updated,alternate\r\n"
+    '"279655","13249","Test dossier","2022 - 1170","","Inbound","All","",'
+    '"True","InProgress","2022-03-29T10:44:18","2022-03-29T10:44:19",'
+    '"https://f2.example/rest/matters/279655"\r\n'
+)
+
+EXTERNAL_PARTY_XML = """\
+<External xmlns="http://cbrain.com/casefile/schema/">
+  <Id>400775</Id>
+  <Name>Søren Ærø</Name>
+  <PartyNumber>39938</PartyNumber>
+  <PartyType>Borger</PartyType>
+  <Address1>Helevejen 1</Address1>
+  <Address2 />
+  <City>Egebjerg</City>
+  <CountryCode>DK</CountryCode>
+  <CVRCPR>311299-1234</CVRCPR>
+  <EMail>soren@example.dk</EMail>
+  <PostalCode>2751</PostalCode>
+  <ProtectedAddress>false</ProtectedAddress>
+  <SynchronizationKey>xpq123</SynchronizationKey>
+  <Organization>
+    <Name>Aarhus Kommune</Name>
+    <Type>Unit</Type>
+    <Id>2156</Id>
+    <PartyNumber>20</PartyNumber>
+  </Organization>
+  <Link href="https://f2.example/rest/parties/400775" rel="self" />
+</External>
+"""
+
+USER_XML = """\
+<User xmlns="http://cbrain.com/casefile/schema/">
+  <Id>400776</Id>
+  <Name>The Boss</Name>
+  <Initials>AZ12345</Initials>
+  <Link href="https://f2.example/rest/parties/400776" rel="self" />
+</User>
+"""

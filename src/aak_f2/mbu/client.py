@@ -6,15 +6,53 @@ can switch by changing its import. Return values are F2 models where GO
 returned raw GO structures, because those cannot be reproduced from F2.
 """
 
+from dataclasses import dataclass, field
 from os import PathLike
 from typing import Any
 
-from aak_f2.shared import Case
+from aak_f2.shared import Case, F2NotFoundError, Party
 from aak_f2.shared import F2Client as SharedF2Client
 
 
+@dataclass(frozen=True)
+class ContactResult:
+    """A party looked up by CPR number, in the shape of ``GoClient``'s result.
+
+    Attributes:
+        full_name: Name of the party, or ``""`` if F2 has no party for the CPR.
+        id: Internal F2 party ID as a string, or ``""`` if not found.
+        raw: The F2 ``Party``, or ``None`` if not found. Its ``party_number``
+            is what F2 uses to reference the party elsewhere.
+    """
+
+    full_name: str
+    id: str
+    raw: Party | None = field(default=None, repr=False)
+
+
 class F2Client(SharedF2Client):
-    """Shared ``F2Client`` plus the read methods of MBU's ``GoClient``."""
+    """Shared ``F2Client`` plus the read and lookup methods of MBU's ``GoClient``."""
+
+    def contact_lookup(self, ssn: str, *, site: str = "borgersager") -> ContactResult:
+        """Look up the party with CPR number ``ssn``.
+
+        Like ``GoClient``, a CPR without a party gives a result with empty
+        ``full_name`` and ``id`` instead of an error.
+
+        Args:
+            ssn: CPR number.
+            site: Exists for compatibility with ``GoClient`` and is not used.
+        """
+        del site
+        try:
+            party = self.get_party_by_cpr(ssn)
+        except F2NotFoundError:
+            return ContactResult(full_name="", id="")
+        return ContactResult(
+            full_name=party.name or "",
+            id="" if party.id is None else str(party.id),
+            raw=party,
+        )
 
     def get_case_metadata(self, case_id: int | str) -> Case:
         """Return the case with internal ID ``case_id``.

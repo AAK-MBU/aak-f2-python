@@ -34,6 +34,26 @@ for item in client.list_matters(case):
 structure = client.get_case_structure(case)  # all matters and documents at once
 ```
 
+### Search and parties
+
+```python
+hits = client.search_cases(cpr_number="311299-1234")  # or case_number, title, ...
+case = client.get_case(hits[0].id)
+matters = client.search_matters(case_number="2022 - 60")
+
+party = client.get_party_by_cpr("311299-1234")  # citizen or company
+user = client.get_party_by_login("AZ12345")  # F2 user
+```
+
+`search_cases` takes `case_number`, `case_id`, `title`, `cpr_number` and
+`external_id`; `search_matters` takes `matter_number`, `matter_id`, `title`,
+`case_number` and `cpr_number`. At least one criterion is required. The hits
+carry the columns of F2's search result; read the full case or matter by its
+`id`.
+
+Only cases and matters the F2 user can access can be expected in a search
+result, so an empty result does not prove that nothing matches.
+
 Methods that take a case, matter or document accept either its ID or an object
 already read with the client.
 
@@ -86,4 +106,4 @@ except F2NotFoundError:
 
 `aak_f2.mbu.F2Client` extends the shared client with the method names of MBU's
 GetOrganized client (`get_case_metadata`, `document_metadata`, `download`,
-`convert_to_pdf`), so MBU processes can switch ESDH by changing the import.
+`convert_to_pdf`, `contact_lookup`), so MBU processes can switch ESDH by changing the import.

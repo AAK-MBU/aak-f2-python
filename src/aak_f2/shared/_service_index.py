@@ -34,6 +34,11 @@ def parse_service_index(data: Mapping[str, Any], base_url: str) -> dict[str, str
     return links
 
 
+def template_parameters(template: str) -> list[str]:
+    """Return the names of the ``{name}`` parameters in a URL template."""
+    return _TEMPLATE_PARAMETER.findall(template)
+
+
 def expand_template(template: str, params: Mapping[str, object]) -> str:
     """Fill the ``{name}`` parameters of a URL template.
 

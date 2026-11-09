@@ -1,5 +1,8 @@
 """HTTP connection to F2-REST: authentication, retries and error handling."""
 
+import csv
+import io
+import re
 import time
 import xml.etree.ElementTree as ET
 from collections.abc import Callable, Mapping
@@ -21,6 +24,8 @@ XML_ACCEPT = (
     "application/xml;q=0.8"
 )
 JSON_ACCEPT = "application/json"
+CSV_ACCEPT = "text/csv"
+_CHARSET = re.compile(r"charset=([\w.-]+)", re.IGNORECASE)
 
 # 423: the resource is locked by another user. 503: transient server problem
 # such as a database deadlock. F2 recommends retrying both later.
@@ -158,6 +163,18 @@ class Connection:
         """GET binary content, e.g. a document file."""
         return self.request("GET", url, accept="*/*").content
 
+    def get_csv(
+        self, url: str, params: Mapping[str, str] | None = None
+    ) -> list[dict[str, str | None]]:
+        """GET a CSV resource, such as a search result, and return its rows.
+
+        Each row is a dict keyed by the CSV header. The body is decoded with the
+        charset from ``Content-Type``, or UTF-8 when none is given.
+        """
+        response = self.request("GET", url, accept=CSV_ACCEPT, params=params)
+        text = response.content.decode(_charset(response), errors="replace")
+        return list(csv.DictReader(io.StringIO(text)))
+
     def _fetch_index(self, authenticated: bool) -> Mapping[str, Any]:
         response = self.request(
             "GET",
@@ -175,3 +192,10 @@ class Connection:
 
     def _wait(self, attempt: int) -> None:
         self._sleep(self._backoff * 2**attempt)
+
+
+def _charset(response: requests.Response) -> str:
+    match = _CHARSET.search(response.headers.get("Content-Type", ""))
+    charset = match.group(1).lower() if match else "utf-8"
+    # utf-8-sig also strips a byte order mark before the first header.
+    return "utf-8-sig" if charset in {"utf-8", "utf8"} else charset
