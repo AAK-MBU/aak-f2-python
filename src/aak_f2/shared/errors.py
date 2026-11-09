@@ -55,6 +55,10 @@ class F2HTTPError(F2Error):
         text = f"F2 returned HTTP {status_code}: {message}"
         if reason_code:
             text += f" (ReasonCode: {reason_code})"
+        if details:
+            text += f"\nDetails: {details}"
+        if url:
+            text += f"\nURL: {url}"
         super().__init__(text)
         self.status_code = status_code
         self.message = message
