@@ -118,6 +118,28 @@ class DocumentTest(unittest.TestCase):
         session.add("GET", DOCUMENT_URL, make_response(200, DOCUMENT_WITHOUT_PDF_XML))
         self.assertIsNone(client_with(session).get_pdf(378054))
 
+    def test_save_pdf(self):
+        session = standard_session()
+        session.add("GET", DOCUMENT_URL, make_response(200, DOCUMENT_XML))
+        session.add(
+            "GET",
+            f"{DOCUMENT_URL}/pdf",
+            make_response(200, b"%PDF-1.7", content_type="application/pdf"),
+        )
+        with tempfile.TemporaryDirectory() as tmp:
+            target = Path(tmp) / "doc.pdf"
+            path = client_with(session).save_pdf(378054, target)
+            self.assertEqual(path, target)
+            self.assertEqual(target.read_bytes(), b"%PDF-1.7")
+
+    def test_save_pdf_without_pdf_version(self):
+        session = standard_session()
+        session.add("GET", DOCUMENT_URL, make_response(200, DOCUMENT_WITHOUT_PDF_XML))
+        with tempfile.TemporaryDirectory() as tmp:
+            target = Path(tmp) / "doc.pdf"
+            self.assertIsNone(client_with(session).save_pdf(378054, target))
+            self.assertFalse(target.exists())
+
     def test_missing_link_raises(self):
         client = client_with(standard_session())
         with self.assertRaises(F2LinkNotFoundError):

@@ -29,6 +29,7 @@ for item in client.list_matters(case):
         document = client.get_document(doc_item.id)
         client.save_content(document, f"/tmp/{document.id}.{document.file_type}")
         pdf = client.get_pdf(document)  # None if F2 has no PDF version
+        client.save_pdf(document, f"/tmp/{document.id}.pdf")  # None if no PDF
 
 structure = client.get_case_structure(case)  # all matters and documents at once
 ```

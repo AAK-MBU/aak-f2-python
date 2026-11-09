@@ -8,7 +8,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ### Added
 
-- `aak_f2.shared.F2Client` for reading F2: OAuth2 login, service index discovery, retries on 423/503, and reading cases, case structures, matters, documents, file content and PDF renderings.
+- `aak_f2.shared.F2Client` for reading F2: OAuth2 login, service index discovery, retries on 423/503, and reading cases, case structures, matters, documents, file content and PDF renderings, and saving file content or PDF renderings to a file (`save_content`, `save_pdf`).
 - `aak_f2.mbu.F2Client` with the read methods of MBU's GetOrganized client (`get_case_metadata`, `document_metadata`, `download`, `convert_to_pdf`).
 
 ### Changed

@@ -139,14 +139,7 @@ class F2Client:
     def save_content(self, document: DocumentRef, path: str | PathLike[str]) -> Path:
         """Stream the file content of a document to ``path`` and return the path."""
         url = self._follow(self._document(document), "content")
-        target = Path(path)
-        with self._connection.request(
-            "GET", url, accept="*/*", stream=True
-        ) as response:
-            with target.open("wb") as file:
-                for chunk in response.iter_content(chunk_size=_CHUNK_SIZE):
-                    file.write(chunk)
-        return target
+        return self._stream_to_file(url, path)
 
     def get_pdf(self, document: DocumentRef) -> bytes | None:
         """Return F2's PDF rendering of a document, or ``None`` if there is none.
@@ -158,7 +151,29 @@ class F2Client:
             return None
         return self._connection.get_bytes(link.href)
 
+    def save_pdf(self, document: DocumentRef, path: str | PathLike[str]) -> Path | None:
+        """Stream F2's PDF rendering of a document to ``path``.
+
+        Returns:
+            The path written to, or ``None`` if F2 has no PDF version of the
+            document. Nothing is written in that case.
+        """
+        link = self._document(document).link("pdf-content")
+        if link is None:
+            return None
+        return self._stream_to_file(link.href, path)
+
     # ------------------------------------------------------------------ helpers
+
+    def _stream_to_file(self, url: str, path: str | PathLike[str]) -> Path:
+        target = Path(path)
+        with self._connection.request(
+            "GET", url, accept="*/*", stream=True
+        ) as response:
+            with target.open("wb") as file:
+                for chunk in response.iter_content(chunk_size=_CHUNK_SIZE):
+                    file.write(chunk)
+        return target
 
     def _case(self, case: CaseRef) -> Case:
         return case if isinstance(case, Case) else self.get_case(case)
