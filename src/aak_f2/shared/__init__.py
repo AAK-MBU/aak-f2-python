@@ -3,11 +3,13 @@
 from .client import F2Client
 from .config import F2Config
 from .errors import (
+    F2AccessDeniedError,
     F2ConfigError,
     F2ConnectionError,
     F2Error,
     F2HTTPError,
     F2LinkNotFoundError,
+    F2NotFoundError,
 )
 from .models import (
     Case,
@@ -21,6 +23,7 @@ from .models import (
 
 __all__ = [
     "Case",
+    "F2AccessDeniedError",
     "CollectionItem",
     "Document",
     "EnumerationItem",
@@ -31,6 +34,7 @@ __all__ = [
     "F2Error",
     "F2HTTPError",
     "F2LinkNotFoundError",
+    "F2NotFoundError",
     "Link",
     "Matter",
     "PartyItem",

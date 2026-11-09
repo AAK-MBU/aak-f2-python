@@ -2,7 +2,12 @@ import unittest
 
 import requests
 
-from aak_f2.shared import F2ConnectionError, F2HTTPError
+from aak_f2.shared import (
+    F2AccessDeniedError,
+    F2ConnectionError,
+    F2HTTPError,
+    F2NotFoundError,
+)
 from aak_f2.shared._http import Connection
 from tests.fakes import (
     BASE,
@@ -99,6 +104,36 @@ class RequestTest(unittest.TestCase):
             connection(session).get_xml(URL)
         self.assertEqual(ctx.exception.message, "Not found")
         self.assertEqual(ctx.exception.reason_code, "DossierNotFound")
+
+    def test_404_raises_not_found(self):
+        session = standard_session()
+        session.add(
+            "GET",
+            URL,
+            make_response(404, json_body={"Message": "Case with ID 1 not found."}),
+        )
+        with self.assertRaises(F2NotFoundError) as ctx:
+            connection(session).get_xml(URL)
+        self.assertIsInstance(ctx.exception, F2HTTPError)
+        self.assertEqual(ctx.exception.message, "Case with ID 1 not found.")
+
+    def test_403_raises_access_denied(self):
+        session = standard_session()
+        session.add(
+            "GET",
+            URL,
+            make_response(403, json_body={"Message": "Access to ressource denied."}),
+        )
+        with self.assertRaises(F2AccessDeniedError) as ctx:
+            connection(session).get_xml(URL)
+        self.assertEqual(ctx.exception.status_code, 403)
+
+    def test_other_errors_are_plain_http_errors(self):
+        session = standard_session()
+        session.add("GET", URL, make_response(409, ERROR_XML))
+        with self.assertRaises(F2HTTPError) as ctx:
+            connection(session).get_xml(URL)
+        self.assertIs(type(ctx.exception), F2HTTPError)
 
     def test_401_renews_token_once(self):
         session = standard_session()

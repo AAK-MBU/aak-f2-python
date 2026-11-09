@@ -2,6 +2,7 @@
 
 import json
 import xml.etree.ElementTree as ET
+from http import HTTPStatus
 
 import requests
 
@@ -70,6 +71,9 @@ class F2HTTPError(F2Error):
     def from_response(cls, response: requests.Response) -> "F2HTTPError":
         """Build the error from an F2 error response.
 
+        A 404 becomes ``F2NotFoundError`` and a 403 ``F2AccessDeniedError``;
+        other statuses become ``F2HTTPError``.
+
         F2 returns a JSON or XML document with ``Message``, ``Details`` and
         ``ReasonCode``. The OAuth2 token endpoint returns ``error`` and
         ``error_description`` instead. Both are understood; anything else falls
@@ -83,13 +87,37 @@ class F2HTTPError(F2Error):
             or response.reason
             or "Unknown error"
         )
-        return cls(
+        error_class = _STATUS_ERRORS.get(response.status_code, cls)
+        return error_class(
             response.status_code,
             message,
             details=fields.get("Details"),
             reason_code=fields.get("ReasonCode"),
             url=response.url,
         )
+
+
+class F2NotFoundError(F2HTTPError):
+    """F2 answered 404: the resource was not found.
+
+    For cases and matters this also happens when the resource exists but the
+    F2 user has no access to it; F2 does not tell the two apart. For
+    documents, missing access gives ``F2AccessDeniedError`` instead.
+    """
+
+
+class F2AccessDeniedError(F2HTTPError):
+    """F2 answered 403: the resource exists, but the F2 user has no access.
+
+    F2 answers this way for documents. Cases and matters without access give
+    ``F2NotFoundError``.
+    """
+
+
+_STATUS_ERRORS: dict[int, type[F2HTTPError]] = {
+    HTTPStatus.NOT_FOUND: F2NotFoundError,
+    HTTPStatus.FORBIDDEN: F2AccessDeniedError,
+}
 
 
 def _error_fields(response: requests.Response) -> dict[str, str]:

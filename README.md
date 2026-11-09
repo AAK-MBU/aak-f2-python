@@ -37,8 +37,35 @@ structure = client.get_case_structure(case)  # all matters and documents at once
 Methods that take a case, matter or document accept either its ID or an object
 already read with the client.
 
-Errors are raised as subclasses of `aak_f2.shared.F2Error`. `F2HTTPError`
-carries F2's `message`, `details` and `reason_code`.
+### Errors
+
+All errors are subclasses of `aak_f2.shared.F2Error`. HTTP errors from F2 are
+raised as `F2HTTPError`, which carries the `status_code`, the requested `url`
+and F2's `message`, `details` and `reason_code` (the last two only when F2
+sends them). Two statuses have their own subclasses:
+
+| Exception | Status | Meaning |
+| --- | --- | --- |
+| `F2NotFoundError` | 404 | Not found, or no access (cases and matters) |
+| `F2AccessDeniedError` | 403 | Exists, but no access (documents) |
+
+F2 hides cases and matters the F2 user has no access to, so for those a 404
+does not prove that the resource does not exist:
+
+| Resource | Does not exist | Exists, no access |
+| --- | --- | --- |
+| Case | `F2NotFoundError` | `F2NotFoundError` |
+| Matter | `F2NotFoundError` | `F2NotFoundError` |
+| Document | `F2NotFoundError` | `F2AccessDeniedError` |
+
+```python
+from aak_f2.shared import F2NotFoundError
+
+try:
+    case = client.get_case(case_id)
+except F2NotFoundError:
+    ...  # the case does not exist, or the F2 user has no access to it
+```
 
 ### Configuration
 
