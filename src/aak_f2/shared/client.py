@@ -186,8 +186,8 @@ class F2Client:
     ) -> list[CaseSearchHit]:
         """Search cases by one or more properties (F2's filtered case search).
 
-        Only cases the F2 user has access to can be expected in the result, so
-        an empty result does not prove that no such case exists.
+        Cases the F2 user has no access to are left out of the result, so an
+        empty result does not prove that no such case exists.
 
         Args:
             case_number: Case number, e.g. ``"2022 - 60"``.
@@ -220,8 +220,8 @@ class F2Client:
     ) -> list[MatterSearchHit]:
         """Search matters by one or more properties (F2's filtered matter search).
 
-        Only matters the F2 user has access to can be expected in the result,
-        so an empty result does not prove that no such matter exists.
+        Matters the F2 user has no access to are left out of the result, so
+        an empty result does not prove that no such matter exists.
 
         Args:
             matter_number: Public matter number.
