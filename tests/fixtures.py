@@ -24,11 +24,11 @@ CASE_XML = """\
   </Keywords>
   <JournalPlan>
     <Title>Kommunens styrelse</Title>
-    <Code>00.07.00</Code>
+    <Abbreviation>00.07.00</Abbreviation>
   </JournalPlan>
   <ProcessInstruction>
     <Title>Sager vedr. generelle forhold</Title>
-    <Code>G01</Code>
+    <Abbreviation>G01</Abbreviation>
   </ProcessInstruction>
   <Responsible>
     <Name>James Wolt</Name>

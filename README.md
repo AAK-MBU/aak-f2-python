@@ -118,7 +118,8 @@ The KLE classification of a case is given with two arguments:
 | `journal_plan_code` | `JournalPlanCode` (patched as `/JournalPlan`) | The **KLE number** ("journalplan"), e.g. `00.07.00` |
 | `process_instruction_code` | `ProcessInstructionCode` (patched as `/ProcessInstruction`) | The **KLE handlingsfacet**, e.g. `G01` |
 
-They are read back as `case.journal_plan.code` and `case.process_instruction.code`.
+They are read back as `case.journal_plan.abbreviation` and
+`case.process_instruction.abbreviation`.
 
 `update_case` and `update_matter` change only the given properties; a list
 (involved parties, security groups) replaces the whole list. Other properties

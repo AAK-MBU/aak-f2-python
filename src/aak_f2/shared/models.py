@@ -358,9 +358,9 @@ class Case(_Linked):
         f2_guid: Global identifier of the case.
         keyword: First keyword ("emneord"), if any.
         keywords: All keywords.
-        journal_plan: The KLE number ("journalplan"); its ``code`` is the
+        journal_plan: The KLE number ("journalplan"); its ``abbreviation`` is the
             number, e.g. ``"00.07.00"``.
-        process_instruction: The KLE "handlingsfacet"; its ``code`` is the
+        process_instruction: The KLE "handlingsfacet"; its ``abbreviation`` is the
             facet, e.g. ``"G01"``.
         responsible: Party responsible for the case.
         involved_parties: The case parties ("sagens parter").

@@ -40,9 +40,9 @@ class LiveCreateTest(unittest.TestCase):
         print(f"\ncase: {case.id} {case.case_number}")
         self.assertIsNotNone(case.id)
         if KLE:
-            self.assertEqual(case.journal_plan.code, KLE)
+            self.assertEqual(case.journal_plan.abbreviation, KLE)
         if FACET:
-            self.assertEqual(case.process_instruction.code, FACET)
+            self.assertEqual(case.process_instruction.abbreviation, FACET)
 
         with warnings.catch_warnings():
             warnings.simplefilter("error", F2AccessWarning)
