@@ -23,7 +23,9 @@ XML_ACCEPT = (
 )
 JSON_ACCEPT = "application/json"
 CSV_ACCEPT = "text/csv"
-SEARCH_ACCEPT = "text/csv, application/atom+xml;q=0.9, application/json;q=0.8"
+# F2's full text search answers only in ATOM; anything else is accepted as a
+# fallback, like a client sending "*/*".
+FULLTEXT_ACCEPT = "application/atom+xml, */*;q=0.1"
 _CHARSET = re.compile(r"charset=([\w.-]+)", re.IGNORECASE)
 
 # 423: the resource is locked by another user. 503: transient server problem
@@ -176,18 +178,19 @@ class Connection:
     def get_search_rows(
         self, url: str, params: Mapping[str, str] | None = None
     ) -> list[dict[str, str | None]]:
-        """GET a search result in CSV, ATOM or JSON and return its rows.
+        """GET a full text search result and return its rows.
 
-        CSV is preferred. The format F2 answers with is read from
-        ``Content-Type``; see ``_search_results`` for how ATOM entries and JSON
-        objects become rows.
+        ATOM is requested, as that is what F2's full text search returns. An
+        XML body (by ``Content-Type`` or content) is read as ATOM, and a JSON
+        or CSV body as such; see ``_search_results`` for how ATOM entries
+        become rows.
         """
-        response = self.request("GET", url, accept=SEARCH_ACCEPT, params=params)
+        response = self.request("GET", url, accept=FULLTEXT_ACCEPT, params=params)
         content_type = response.headers.get("Content-Type", "").lower()
+        if "xml" in content_type or response.content.lstrip().startswith(b"<"):
+            return _search_results.parse_atom(response.content)
         if "json" in content_type:
             return _search_results.parse_json(_text(response))
-        if "xml" in content_type:
-            return _search_results.parse_atom(response.content)
         return _search_results.parse_csv(_text(response))
 
     def _fetch_index(self, authenticated: bool) -> Mapping[str, Any]:

@@ -50,8 +50,7 @@ class FulltextCaseSearchTest(unittest.TestCase):
         (hit,) = client_with(session).fulltext_search_cases("UV", count=1000)
         (call,) = session.calls_to("GET", CASES_URL)
         self.assertEqual(call["params"], {"q": "UV", "count": "1000"})
-        self.assertIn("text/csv", call["headers"]["Accept"])
-        self.assertIn("application/atom+xml", call["headers"]["Accept"])
+        self.assertTrue(call["headers"]["Accept"].startswith("application/atom+xml"))
         self.assertEqual(hit.id, 279666)
         self.assertEqual(hit.case_number, "2022 - 1172")
 
@@ -111,6 +110,18 @@ class FulltextCaseSearchTest(unittest.TestCase):
             client.fulltext_search_cases("  ")
         with self.assertRaises(ValueError):
             client.fulltext_search_cases("UV", count=0)
+
+
+class AtomDetectionTest(unittest.TestCase):
+    def test_xml_body_without_xml_content_type_is_read_as_atom(self):
+        session = standard_session()
+        session.add(
+            "GET",
+            CASES_URL,
+            make_response(200, ATOM_FEED.encode(), content_type="text/plain"),
+        )
+        hits = client_with(session).fulltext_search_cases("UV")
+        self.assertEqual([hit.id for hit in hits], [279666, 279667])
 
 
 class FulltextMatterSearchTest(unittest.TestCase):
