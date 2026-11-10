@@ -97,7 +97,11 @@ class PartyItem(_Linked):
         email: Contact e-mail.
         type: Party type: ``User``, ``Unit``, ``Team``, ``External``,
             ``DistributionList`` or ``Private``.
-        id: Internal party ID.
+        id: Internal ID. For parties placed on a case or matter, such as
+            ``responsible``, this is the ID of a party snapshot (the ``self``
+            link points to ``/partysnapshots/{id}``) and differs from the
+            party's ID, so it cannot be used with ``F2Client.get_party``. Use
+            ``party_number`` or the ``self`` link instead.
         party_number: Party number shown in F2.
         synchronization_key: Key for synchronizing with e.g. Active Directory.
         cprcvr: CPR or CVR number.
