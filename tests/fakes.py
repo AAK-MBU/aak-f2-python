@@ -21,8 +21,8 @@ SERVICE_INDEX = {
     },
     f"{REL}matter-by-id": {"href": f"{BASE}/matters/{{id}}"},
     f"{REL}document-by-id": {"href": f"{BASE}/documents/{{id}}"},
-    f"{REL}case-search": {"href": f"{BASE}/searches/cases"},
-    f"{REL}matter-search": {"href": f"{BASE}/searches/matters"},
+    f"{REL}case-search": {"href": f"{BASE}/opensearch/cases"},
+    f"{REL}matter-search": {"href": f"{BASE}/opensearch/matters"},
     f"{REL}case-search-filter": {"href": f"{BASE}/search/cases"},
     f"{REL}matter-search-filter": {"href": f"{BASE}/search/matters"},
     f"{REL}party-by-id": {"href": f"{BASE}/parties/{{id}}"},
@@ -31,6 +31,20 @@ SERVICE_INDEX = {
     },
     f"{REL}party-by-login": {"href": f"{BASE}/parties/by-login/{{login}}"},
 }
+
+
+def opensearch_description(template: str) -> requests.Response:
+    """Return an OpenSearch description document with the URL template."""
+    body = f"""<?xml version="1.0" encoding="utf-8"?>
+<?xml-stylesheet type="text/xsl" href="{BASE}/xml2html.xsl"?>
+<OpenSearchDescription xmlns="http://a9.com/-/spec/opensearch/1.1/">
+  <ShortName>Case file search</ShortName>
+  <Url type="application/atom+xml" template="{template.replace("&", "&amp;")}" />
+</OpenSearchDescription>
+"""
+    return make_response(
+        200, body, content_type="application/opensearchdescription+xml"
+    )
 
 
 def make_config(**overrides: object) -> F2Config:
@@ -115,4 +129,18 @@ def standard_session() -> FakeSession:
     session = FakeSession()
     session.add("GET", INDEX_URL, make_response(json_body=SERVICE_INDEX))
     session.add("POST", TOKEN_URL, token_response())
+    session.add(
+        "GET",
+        f"{BASE}/opensearch/cases",
+        opensearch_description(
+            f"{BASE}/searches/cases?q={{searchTerms}}&count={{count}}"
+        ),
+    )
+    session.add(
+        "GET",
+        f"{BASE}/opensearch/matters",
+        opensearch_description(
+            f"{BASE}/searches/matters?q={{searchTerms}}&count={{count}}"
+        ),
+    )
     return session

@@ -23,6 +23,9 @@ XML_ACCEPT = (
 )
 JSON_ACCEPT = "application/json"
 CSV_ACCEPT = "text/csv"
+OPENSEARCH_ACCEPT = (
+    "application/opensearchdescription+xml, application/xml;q=0.9, */*;q=0.1"
+)
 # F2's full text search answers only in ATOM; anything else is accepted as a
 # fallback, like a client sending "*/*".
 FULLTEXT_ACCEPT = "application/atom+xml, */*;q=0.1"

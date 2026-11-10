@@ -44,8 +44,12 @@ matters = client.fulltext_search_matters("UV")  # count defaults to 100
 case = client.get_case(hits[0].id)
 ```
 
-`count` is the maximum number of hits F2 returns. F2's filtered search looks up
-cases and matters by exact properties:
+`count` is the maximum number of hits F2 returns. The services `case-search`
+and `matter-search` point to an OpenSearch description document; the client
+reads the URL template of the real search from it (once) and fills in the text
+and `count`. The result is an ATOM feed.
+
+F2's filtered search looks up cases and matters by exact properties:
 
 ```python
 hits = client.search_cases(cpr_number="311299-1234")  # or case_number, title, ...
@@ -81,7 +85,9 @@ url = client.service_url("party-by-party-number", partyNo="12345")
 ```
 
 The index is read with authentication, so it shows the services available to
-the F2 user.
+the F2 user. For OpenSearch services such as `case-search`, the index points to
+a description document; `opensearch_template("case-search")` returns the URL
+template of the real search from it.
 
 ### Errors
 

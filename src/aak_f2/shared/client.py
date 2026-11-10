@@ -3,11 +3,13 @@
 from os import PathLike
 from pathlib import Path
 from typing import Self
+from urllib.parse import urljoin
 
 import requests
 
-from ._http import Connection
-from ._rels import CASEFILE_REL_PREFIX
+from . import _search_results
+from ._http import OPENSEARCH_ACCEPT, Connection
+from ._rels import CASEFILE_REL_PREFIX, full_rel
 from ._service_index import expand_template, template_parameters
 from .config import F2Config
 from .errors import F2Error, F2LinkNotFoundError
@@ -60,6 +62,7 @@ class F2Client:
             session: HTTP session to use. A new one is created if omitted.
         """
         self._connection = Connection(config, session=session)
+        self._opensearch_templates: dict[str, str] = {}
 
     @classmethod
     def from_env(cls) -> Self:
@@ -79,9 +82,11 @@ class F2Client:
     def health_check(self) -> bool:
         """Return whether F2 answers and the credentials are accepted.
 
-        Reads the service index again and fetches an access token.
+        Reads the service index again and fetches an access token. Cached
+        OpenSearch templates are read again on next use.
         """
         connection = self._connection
+        self._opensearch_templates.clear()
         try:
             connection.index.reload()
             connection.index.href("oauth2-token")
@@ -127,6 +132,43 @@ class F2Client:
             >>> client.service_url("case-by-id", id=1046444)
         """
         return self._connection.index.expand(rel, **params)
+
+    def opensearch_template(self, rel: str) -> str:
+        """Return the search URL template of an OpenSearch service.
+
+        Services such as ``case-search`` and ``matter-search`` point to an
+        OpenSearch description document rather than to the search itself. The
+        document holds the URL template of the real search, e.g.
+        ``.../searches/cases?q={searchTerms}&count={count}``. The template is
+        read once and cached. If the service index already gives a URL
+        template, that is returned as is.
+
+        Args:
+            rel: Short name (``"case-search"``) or full relation name.
+
+        Raises:
+            F2LinkNotFoundError: If the service is not in the service index.
+            F2Error: If the service does not point to an OpenSearch description
+                with a URL template.
+        """
+        key = full_rel(rel)
+        cached = self._opensearch_templates.get(key)
+        if cached is not None:
+            return cached
+        href = self._connection.index.href(rel)
+        if template_parameters(href):
+            template = href
+        else:
+            response = self._connection.request("GET", href, accept=OPENSEARCH_ACCEPT)
+            found = _search_results.parse_opensearch_template(response.content)
+            if found is None:
+                raise F2Error(
+                    f"Service {rel!r} at {href} is not an OpenSearch description "
+                    "with a URL template"
+                )
+            template = urljoin(response.url or href, found)
+        self._opensearch_templates[key] = template
+        return template
 
     # ------------------------------------------------------------------ cases
 
@@ -382,22 +424,23 @@ class F2Client:
     ) -> list[dict[str, str | None]]:
         """Run a full text search and return the result rows.
 
-        The service is called as ``<url>?q=<text>&count=<count>``. Should the
-        installation publish it as an OpenSearch URL template, ``{searchTerms}``
-        (or ``{q}``) and ``{count}`` are filled instead.
+        ``{searchTerms}`` and ``{count}`` in the service's OpenSearch URL
+        template are filled; other template parameters are left empty.
         """
         if not text or not text.strip():
             raise ValueError("Give a text to search for")
         if count < 1:
             raise ValueError("count must be at least 1")
-        href = self._connection.index.href(rel)
-        names = template_parameters(href)
-        if not names:
-            return self._connection.get_search_rows(
-                href, {"q": text, "count": str(count)}
-            )
-        values = {"searchTerms": text, "q": text, "count": count}
-        url = expand_template(href, {name: values.get(name) for name in names})
+        template = self.opensearch_template(rel)
+        values = {"searchTerms": text, "count": count}
+        # OpenSearch marks optional parameters with "?", e.g. {startIndex?}.
+        url = expand_template(
+            template,
+            {
+                name: values.get(name.rstrip("?"))
+                for name in template_parameters(template)
+            },
+        )
         return self._connection.get_search_rows(url)
 
     def _stream_to_file(self, url: str, path: str | PathLike[str]) -> Path:

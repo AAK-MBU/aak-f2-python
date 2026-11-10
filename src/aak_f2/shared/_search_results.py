@@ -23,6 +23,25 @@ _ATOM_COLUMNS = {"title": "Title", "updated": "Updated", "published": "Created"}
 _TRAILING_ID = re.compile(r"/(\d+)/?(?:[?#].*)?$")
 
 
+def parse_opensearch_template(content: bytes) -> str | None:
+    """Return the search URL template from an OpenSearch description document.
+
+    The ``Url`` for ATOM results is preferred; otherwise the first ``Url`` with
+    a template is used. Returns ``None`` if the document is not an OpenSearch
+    description or has no template.
+    """
+    try:
+        root = _xml.parse(content)
+    except ET.ParseError:
+        return None
+    if _xml.local_name(root.tag) != "OpenSearchDescription":
+        return None
+    urls = [url for url in _xml.children(root, "Url") if url.get("template")]
+    atom = [url for url in urls if "atom" in (url.get("type") or "")]
+    chosen = (atom or urls or [None])[0]
+    return chosen.get("template") if chosen is not None else None
+
+
 def parse_csv(text: str) -> list[Row]:
     """Return the rows of a CSV search result, keyed by the CSV header."""
     return list(csv.DictReader(io.StringIO(text)))
