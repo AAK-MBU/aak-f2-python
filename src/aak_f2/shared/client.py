@@ -273,6 +273,11 @@ class F2Client:
             text: The text to search for.
             count: The maximum number of hits F2 should return.
 
+        Returns:
+            The hits with ``id``, ``title``, ``created``, ``updated`` and
+            ``url``. F2's full text result has no case number or other
+            properties; read the full case by its ``id`` for those.
+
         Raises:
             ValueError: If ``text`` is empty or ``count`` is not positive.
         """
@@ -293,6 +298,11 @@ class F2Client:
         Args:
             text: The text to search for.
             count: The maximum number of hits F2 should return.
+
+        Returns:
+            The hits with ``id``, ``title``, ``created``, ``updated`` and
+            ``url``. F2's full text result has no matter number or other
+            properties; read the full matter by its ``id`` for those.
 
         Raises:
             ValueError: If ``text`` is empty or ``count`` is not positive.

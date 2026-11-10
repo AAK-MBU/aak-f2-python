@@ -534,6 +534,11 @@ class CaseSearchHit:
 
     Use ``F2Client.get_case(hit.id)`` for the full case.
 
+    A full text search hit only has ``id``, ``title``, ``created``,
+    ``updated`` and ``url``; the other attributes are ``None``. Its
+    ``created`` and ``updated`` carry the UTC offset F2 sends, whereas the
+    filtered search gives local times without a time zone.
+
     Attributes:
         id: Internal case ID.
         case_number: Official case number.
@@ -578,6 +583,11 @@ class MatterSearchHit:
     """One matter found by ``F2Client.search_matters`` or ``fulltext_search_matters``.
 
     Use ``F2Client.get_matter(hit.id)`` for the full matter.
+
+    A full text search hit only has ``id``, ``title``, ``created``,
+    ``updated`` and ``url``; the other attributes are ``None``. Its
+    ``created`` and ``updated`` carry the UTC offset F2 sends, whereas the
+    filtered search gives local times without a time zone.
 
     Attributes:
         id: Internal matter ID.

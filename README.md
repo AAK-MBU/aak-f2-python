@@ -47,7 +47,9 @@ case = client.get_case(hits[0].id)
 `count` is the maximum number of hits F2 returns. The services `case-search`
 and `matter-search` point to an OpenSearch description document; the client
 reads the URL template of the real search from it (once) and fills in the text
-and `count`. The result is an ATOM feed.
+and `count`. The result is an ATOM feed, so a hit only has `id`, `title`,
+`created`, `updated` (with UTC offset) and `url`; read the full case or matter
+by its `id` for the case number and other properties.
 
 F2's filtered search looks up cases and matters by exact properties:
 

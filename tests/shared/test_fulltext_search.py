@@ -1,5 +1,5 @@
 import unittest
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
 
 from aak_f2.shared import F2Client, F2Error
 from tests.fakes import (
@@ -29,23 +29,44 @@ def atom_response(body=None, content_type="application/atom+xml"):
     return make_response(200, (body or ATOM_FEED).encode(), content_type=content_type)
 
 
+# Structure of F2's full text search result (values made up).
 ATOM_FEED = """<?xml version="1.0" encoding="utf-8"?>
 <feed xmlns="http://www.w3.org/2005/Atom">
-  <title>Search</title>
+  <title type="text">Search result for: Søren</title>
+  <subtitle type="text" />
+  <id>https://f2.example/rest/searches/cases?q=S%C3%B8ren</id>
+  <updated>2026-11-10T12:00:00Z</updated>
+  <author><name>cBrain</name><email>cbrain@cbrain.dk</email></author>
+  <link rel="alternate" href="https://f2.example/rest/searches/cases?q=S%C3%B8ren" />
+  <link rel="self" type="application/atom+xml" title="Search result"
+        href="https://f2.example/rest/searches/cases?q=S%C3%B8ren" />
+  <link rel="search" type="application/opensearchdescription+xml"
+        title="Case search" href="https://f2.example/rest/search/cases" />
   <entry>
-    <id>urn:f2:case:279666</id>
-    <title>Sag om Søren Ærø</title>
-    <updated>2022-03-29T11:00:58</updated>
+    <id>https://f2.example/rest/cases/279666#2022-03-30T08:15:00</id>
+    <title type="text">Sag om Søren Ærø</title>
+    <published>2022-03-29T11:00:58+02:00</published>
+    <updated>2022-03-30T08:15:00+02:00</updated>
+    <link rel="self" type="application/vnd.cbrain.casefile+xml"
+          title="Sag om Søren Ærø" href="https://f2.example/rest/cases/279666" />
     <link rel="alternate" href="https://f2.example/rest/cases/279666" />
-    <summary>2022 - 1172</summary>
   </entry>
   <entry>
-    <id>urn:f2:case:279667</id>
-    <title>Anden sag</title>
-    <link href="https://f2.example/rest/cases/279667?x=1" />
+    <id>https://f2.example/rest/cases/279667#2022-04-01T09:00:00</id>
+    <title type="text">Anden sag</title>
+    <published>2022-04-01T09:00:00+02:00</published>
+    <updated>2022-04-01T09:00:00+02:00</updated>
+    <link rel="self" type="application/vnd.cbrain.casefile+xml"
+          title="Anden sag" href="https://f2.example/rest/cases/279667" />
+    <link rel="alternate" href="https://f2.example/rest/cases/279667" />
   </entry>
 </feed>
 """
+
+ENTRY_WITHOUT_ALTERNATE = """<feed xmlns="http://www.w3.org/2005/Atom"><entry>
+  <title>Uden alternate</title>
+  <link rel="self" href="https://f2.example/rest/cases/279668?x=1" />
+</entry></feed>"""
 
 
 def client_with(session):
@@ -84,13 +105,21 @@ class FulltextCaseSearchTest(unittest.TestCase):
         session = standard_session()
         session.add("GET", cases_url("S%C3%B8ren"), atom_response())
         first, second = client_with(session).fulltext_search_cases("Søren")
+        cest = timezone(timedelta(hours=2))
         self.assertEqual(first.id, 279666)
         self.assertEqual(first.title, "Sag om Søren Ærø")
-        self.assertEqual(first.updated, datetime(2022, 3, 29, 11, 0, 58))
+        self.assertEqual(first.created, datetime(2022, 3, 29, 11, 0, 58, tzinfo=cest))
+        self.assertEqual(first.updated, datetime(2022, 3, 30, 8, 15, tzinfo=cest))
         self.assertEqual(first.url, "https://f2.example/rest/cases/279666")
-        self.assertEqual(first.raw["summary"], "2022 - 1172")
-        self.assertEqual(first.raw["AtomId"], "urn:f2:case:279666")
+        self.assertIsNone(first.case_number)
         self.assertEqual(second.id, 279667)
+
+    def test_entry_without_alternate_link_uses_other_link(self):
+        session = standard_session()
+        session.add("GET", cases_url("UV"), atom_response(ENTRY_WITHOUT_ALTERNATE))
+        (hit,) = client_with(session).fulltext_search_cases("UV")
+        self.assertEqual(hit.id, 279668)
+        self.assertEqual(hit.url, "https://f2.example/rest/cases/279668?x=1")
 
     def test_xml_body_without_xml_content_type_is_read_as_atom(self):
         session = standard_session()
