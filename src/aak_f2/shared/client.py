@@ -7,6 +7,7 @@ from typing import Self
 import requests
 
 from ._http import Connection
+from ._rels import CASEFILE_REL_PREFIX
 from ._service_index import expand_template, template_parameters
 from .config import F2Config
 from .errors import F2Error, F2LinkNotFoundError
@@ -15,6 +16,7 @@ from .models import (
     CaseSearchHit,
     CollectionItem,
     Document,
+    Link,
     Matter,
     MatterSearchHit,
     Party,
@@ -85,6 +87,43 @@ class F2Client:
         except F2Error:
             return False
         return True
+
+    # ------------------------------------------------------------------ service index
+
+    def service_index(self) -> dict[str, Link]:
+        """Return the services of the F2 installation from the service index.
+
+        The index is read with authentication, so it lists the services
+        available to the F2 user. F2 relations are keyed by their short name,
+        e.g. ``"case-by-id"``; ``Link.rel`` holds the full relation name. A
+        ``Link.href`` may be a URL template with ``{name}`` parameters; fill it
+        with ``service_url``.
+
+        Example:
+            >>> for name, link in sorted(client.service_index().items()):
+            ...     print(name, link.href)
+        """
+        return {
+            rel.removeprefix(CASEFILE_REL_PREFIX): link
+            for rel, link in self._connection.index.links(authenticated=True).items()
+        }
+
+    def service_url(self, rel: str, **params: object) -> str:
+        """Return the URL of service ``rel`` with its template parameters filled.
+
+        Args:
+            rel: Short name (``"case-by-id"``) or full relation name.
+            **params: Values for the ``{name}`` parameters of the URL template.
+                Values are URL-encoded.
+
+        Raises:
+            F2LinkNotFoundError: If the service is not in the service index.
+            ValueError: If a template parameter has no value.
+
+        Example:
+            >>> client.service_url("case-by-id", id=1046444)
+        """
+        return self._connection.index.expand(rel, **params)
 
     # ------------------------------------------------------------------ cases
 

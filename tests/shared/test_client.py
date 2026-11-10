@@ -163,3 +163,24 @@ class HealthCheckTest(unittest.TestCase):
         client = F2Client(make_config(), session=session)
         client._connection._sleep = lambda _: None
         self.assertFalse(client.health_check())
+
+
+class ServiceIndexTest(unittest.TestCase):
+    def test_service_index_uses_short_names(self):
+        services = client_with(standard_session()).service_index()
+        link = services["case-by-id"]
+        self.assertEqual(link.href, f"{BASE}/cases/{{id}}")
+        self.assertEqual(link.title, "Case by ID")
+        self.assertEqual(link.rel, "http://cbrain.com/casefile/rel/case-by-id")
+
+    def test_service_url_fills_template(self):
+        client = client_with(standard_session())
+        self.assertEqual(client.service_url("case-by-id", id=7), f"{BASE}/cases/7")
+
+    def test_service_url_missing_parameter(self):
+        with self.assertRaises(ValueError):
+            client_with(standard_session()).service_url("case-by-id")
+
+    def test_service_url_unknown_service(self):
+        with self.assertRaises(F2LinkNotFoundError):
+            client_with(standard_session()).service_url("no-such-service")

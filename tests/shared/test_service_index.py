@@ -22,10 +22,13 @@ class ParseTest(unittest.TestCase):
             },
             BASE,
         )
-        self.assertEqual(
-            links[f"{REL}case-by-id"], "https://f2.example/rest/cases/{id}"
-        )
-        self.assertEqual(links[f"{REL}oauth2-token"], "https://auth.example/token")
+        case = links[f"{REL}case-by-id"]
+        self.assertEqual(case.href, "https://f2.example/rest/cases/{id}")
+        self.assertEqual(case.title, "Case")
+        self.assertEqual(case.rel, f"{REL}case-by-id")
+        token = links[f"{REL}oauth2-token"]
+        self.assertEqual(token.href, "https://auth.example/token")
+        self.assertIsNone(token.title)
         self.assertNotIn("ignored", links)
 
 
@@ -102,3 +105,21 @@ class ServiceIndexTest(unittest.TestCase):
         index.reload()
         index.href("case-by-id")
         self.assertEqual(calls, [False, False])
+
+
+class LinksTest(unittest.TestCase):
+    def test_authenticated_links_reload_once(self):
+        calls = []
+
+        def fetch(authenticated):
+            calls.append(authenticated)
+            data = {f"{REL}oauth2-token": {"href": "token"}}
+            if authenticated:
+                data[f"{REL}case-by-id"] = {"href": "cases/{id}"}
+            return data
+
+        index = ServiceIndex(fetch, BASE)
+        self.assertEqual(list(index.links()), [f"{REL}oauth2-token"])
+        self.assertIn(f"{REL}case-by-id", index.links(authenticated=True))
+        index.links(authenticated=True)
+        self.assertEqual(calls, [False, True])

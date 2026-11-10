@@ -13,24 +13,30 @@ from urllib.parse import quote, urljoin
 
 from ._rels import full_rel
 from .errors import F2HTTPError, F2LinkNotFoundError
+from .models import Link
 
 _TEMPLATE_PARAMETER = re.compile(r"\{([^{}]+)\}")
 
 
-def parse_service_index(data: Mapping[str, Any], base_url: str) -> dict[str, str]:
-    """Map link relations to absolute URLs from the JSON service index.
+def parse_service_index(data: Mapping[str, Any], base_url: str) -> dict[str, Link]:
+    """Map link relations to links with absolute URLs from the JSON service index.
 
     The JSON form is an object from relation name to ``{"href": ..., "title": ...}``.
+    Entries without an ``href`` are left out.
     """
-    links: dict[str, str] = {}
+    links: dict[str, Link] = {}
     for rel, value in data.items():
-        href = (
-            value.get("href") or value.get("Href")
-            if isinstance(value, Mapping)
-            else value
-        )
+        if isinstance(value, Mapping):
+            href = value.get("href") or value.get("Href")
+            title = value.get("title") or value.get("Title")
+        else:
+            href, title = value, None
         if isinstance(href, str) and href:
-            links[rel] = urljoin(base_url, href)
+            links[rel] = Link(
+                rel=rel,
+                href=urljoin(base_url, href),
+                title=title if isinstance(title, str) else None,
+            )
     return links
 
 
@@ -78,7 +84,7 @@ class ServiceIndex:
         """
         self._fetch = fetch
         self._base_url = base_url
-        self._links: dict[str, str] | None = None
+        self._links: dict[str, Link] | None = None
         self._authenticated = False
 
     def href(self, rel: str) -> str:
@@ -92,7 +98,7 @@ class ServiceIndex:
         if wanted not in links and not self._authenticated:
             links = self._load(authenticated=True)
         try:
-            return links[wanted]
+            return links[wanted].href
         except KeyError:
             raise F2LinkNotFoundError(wanted, "the service index") from None
 
@@ -100,12 +106,25 @@ class ServiceIndex:
         """Return the URL template for ``rel`` filled with ``params``."""
         return expand_template(self.href(rel), params)
 
+    def links(self, *, authenticated: bool = False) -> dict[str, Link]:
+        """Return all links in the service index, keyed by full relation name.
+
+        Args:
+            authenticated: Make sure the index has been read with
+                authentication, which may list more relations than the
+                anonymous index.
+        """
+        links = self._links if self._links is not None else self._load()
+        if authenticated and not self._authenticated:
+            links = self._load(authenticated=True)
+        return dict(links)
+
     def reload(self) -> None:
         """Forget the cached index so it is read again on next use."""
         self._links = None
         self._authenticated = False
 
-    def _load(self, *, authenticated: bool = False) -> dict[str, str]:
+    def _load(self, *, authenticated: bool = False) -> dict[str, Link]:
         try:
             data = self._fetch(authenticated)
         except F2HTTPError as exc:

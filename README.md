@@ -51,11 +51,26 @@ user = client.get_party_by_login("AZ12345")  # F2 user
 carry the columns of F2's search result; read the full case or matter by its
 `id`.
 
-Only cases and matters the F2 user can access can be expected in a search
+Cases and matters the F2 user has no access to are left out of a search
 result, so an empty result does not prove that nothing matches.
 
 Methods that take a case, matter or document accept either its ID or an object
 already read with the client.
+
+### Service index
+
+F2 publishes its services in the service index. `service_index()` returns them
+keyed by short name, and `service_url()` fills a service's URL template:
+
+```python
+for name, link in sorted(client.service_index().items()):
+    print(name, link.href, link.title)
+
+url = client.service_url("party-by-party-number", partyNo="12345")
+```
+
+The index is read with authentication, so it shows the services available to
+the F2 user.
 
 ### Errors
 
