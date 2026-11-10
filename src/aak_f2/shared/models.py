@@ -530,7 +530,7 @@ def _cell_datetime(row: Mapping[str, str | None], name: str) -> datetime | None:
 
 @dataclass(frozen=True)
 class CaseSearchHit:
-    """One case found by ``F2Client.search_cases``.
+    """One case found by ``F2Client.search_cases`` or ``fulltext_search_cases``.
 
     Use ``F2Client.get_case(hit.id)`` for the full case.
 
@@ -543,7 +543,8 @@ class CaseSearchHit:
         created: Time of creation.
         updated: Time of last modification.
         url: URL of the case in F2-REST.
-        raw: The search result row as returned by F2.
+        raw: The search result row as returned by F2. For an ATOM result,
+            the elements of the entry keyed by name.
     """
 
     id: int | None
@@ -574,7 +575,7 @@ class CaseSearchHit:
 
 @dataclass(frozen=True)
 class MatterSearchHit:
-    """One matter found by ``F2Client.search_matters``.
+    """One matter found by ``F2Client.search_matters`` or ``fulltext_search_matters``.
 
     Use ``F2Client.get_matter(hit.id)`` for the full matter.
 
@@ -593,7 +594,8 @@ class MatterSearchHit:
         created: Time of creation.
         updated: Time of last modification.
         url: URL of the matter in F2-REST.
-        raw: The search result row as returned by F2.
+        raw: The search result row as returned by F2. For an ATOM result,
+            the elements of the entry keyed by name.
     """
 
     id: int | None

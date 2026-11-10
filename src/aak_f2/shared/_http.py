@@ -1,7 +1,5 @@
 """HTTP connection to F2-REST: authentication, retries and error handling."""
 
-import csv
-import io
 import re
 import time
 import xml.etree.ElementTree as ET
@@ -12,7 +10,7 @@ from urllib.parse import urljoin
 
 import requests
 
-from . import _xml
+from . import _search_results, _xml
 from ._auth import TokenManager
 from ._service_index import ServiceIndex
 from .config import F2Config
@@ -25,6 +23,7 @@ XML_ACCEPT = (
 )
 JSON_ACCEPT = "application/json"
 CSV_ACCEPT = "text/csv"
+SEARCH_ACCEPT = "text/csv, application/atom+xml;q=0.9, application/json;q=0.8"
 _CHARSET = re.compile(r"charset=([\w.-]+)", re.IGNORECASE)
 
 # 423: the resource is locked by another user. 503: transient server problem
@@ -172,8 +171,24 @@ class Connection:
         charset from ``Content-Type``, or UTF-8 when none is given.
         """
         response = self.request("GET", url, accept=CSV_ACCEPT, params=params)
-        text = response.content.decode(_charset(response), errors="replace")
-        return list(csv.DictReader(io.StringIO(text)))
+        return _search_results.parse_csv(_text(response))
+
+    def get_search_rows(
+        self, url: str, params: Mapping[str, str] | None = None
+    ) -> list[dict[str, str | None]]:
+        """GET a search result in CSV, ATOM or JSON and return its rows.
+
+        CSV is preferred. The format F2 answers with is read from
+        ``Content-Type``; see ``_search_results`` for how ATOM entries and JSON
+        objects become rows.
+        """
+        response = self.request("GET", url, accept=SEARCH_ACCEPT, params=params)
+        content_type = response.headers.get("Content-Type", "").lower()
+        if "json" in content_type:
+            return _search_results.parse_json(_text(response))
+        if "xml" in content_type:
+            return _search_results.parse_atom(response.content)
+        return _search_results.parse_csv(_text(response))
 
     def _fetch_index(self, authenticated: bool) -> Mapping[str, Any]:
         response = self.request(
@@ -192,6 +207,10 @@ class Connection:
 
     def _wait(self, attempt: int) -> None:
         self._sleep(self._backoff * 2**attempt)
+
+
+def _text(response: requests.Response) -> str:
+    return response.content.decode(_charset(response), errors="replace")
 
 
 def _charset(response: requests.Response) -> str:

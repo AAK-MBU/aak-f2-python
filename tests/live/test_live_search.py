@@ -19,6 +19,7 @@ CONFIGURED = all(os.environ.get(name) for name in REQUIRED)
 CASE_ID = os.environ.get("F2_LIVE_CASE_ID")
 CPR = os.environ.get("F2_LIVE_CPR")
 LOGIN = os.environ.get("F2_LIVE_LOGIN")
+SEARCH_TEXT = os.environ.get("F2_LIVE_SEARCH_TEXT")
 
 
 @unittest.skipUnless(CONFIGURED, "F2 live settings are not set")
@@ -28,6 +29,24 @@ class LiveSearchTest(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         cls.client = F2Client.from_env()
+
+    @unittest.skipUnless(SEARCH_TEXT, "F2_LIVE_SEARCH_TEXT is not set")
+    def test_fulltext_search_cases_respects_count(self):
+        few = self.client.fulltext_search_cases(SEARCH_TEXT, count=5)
+        self.assertLessEqual(len(few), 5)
+        self.assertTrue(all(hit.id for hit in few), few)
+        many = self.client.fulltext_search_cases(SEARCH_TEXT, count=1000)
+        self.assertGreaterEqual(len(many), len(few))
+        print(f"\nfulltext_search_cases: {len(many)} hits with count=1000")
+
+    @unittest.skipUnless(SEARCH_TEXT, "F2_LIVE_SEARCH_TEXT is not set")
+    def test_fulltext_search_matters_respects_count(self):
+        few = self.client.fulltext_search_matters(SEARCH_TEXT, count=5)
+        self.assertLessEqual(len(few), 5)
+        self.assertTrue(all(hit.id for hit in few), few)
+        many = self.client.fulltext_search_matters(SEARCH_TEXT, count=1000)
+        self.assertGreaterEqual(len(many), len(few))
+        print(f"\nfulltext_search_matters: {len(many)} hits with count=1000")
 
     @unittest.skipUnless(CASE_ID, "F2_LIVE_CASE_ID is not set")
     def test_search_cases_by_case_number_and_id(self):

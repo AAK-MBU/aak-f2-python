@@ -36,6 +36,17 @@ structure = client.get_case_structure(case)  # all matters and documents at once
 
 ### Search and parties
 
+Full text search is the primary way to search:
+
+```python
+hits = client.fulltext_search_cases("UV", count=1000)
+matters = client.fulltext_search_matters("UV")  # count defaults to 100
+case = client.get_case(hits[0].id)
+```
+
+`count` is the maximum number of hits F2 returns. F2's filtered search looks up
+cases and matters by exact properties:
+
 ```python
 hits = client.search_cases(cpr_number="311299-1234")  # or case_number, title, ...
 case = client.get_case(hits[0].id)
@@ -49,7 +60,7 @@ user = client.get_party_by_login("AZ12345")  # F2 user
 `external_id`; `search_matters` takes `matter_number`, `matter_id`, `title`,
 `case_number` and `cpr_number`. At least one criterion is required. The hits
 carry the columns of F2's search result; read the full case or matter by its
-`id`.
+`id`. The filtered search returns at most 100 hits and has no `count`.
 
 Cases and matters the F2 user has no access to are left out of a search
 result, so an empty result does not prove that nothing matches.

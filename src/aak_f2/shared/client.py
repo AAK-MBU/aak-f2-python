@@ -29,6 +29,9 @@ type DocumentRef = Document | int | str
 
 _CHUNK_SIZE = 1024 * 1024
 
+DEFAULT_SEARCH_COUNT = 100
+"""Default maximum number of hits from the full text searches."""
+
 
 class F2Client:
     """Client for the F2-REST service.
@@ -214,6 +217,47 @@ class F2Client:
 
     # ------------------------------------------------------------------ search
 
+    def fulltext_search_cases(
+        self, text: str, *, count: int = DEFAULT_SEARCH_COUNT
+    ) -> list[CaseSearchHit]:
+        """Search cases by free text with F2's full text search (``case-search``).
+
+        This is the primary way to search cases. Use ``search_cases`` to look
+        up cases by exact properties such as case number or CPR number.
+
+        Cases the F2 user has no access to are left out of the result.
+
+        Args:
+            text: The text to search for.
+            count: The maximum number of hits F2 should return.
+
+        Raises:
+            ValueError: If ``text`` is empty or ``count`` is not positive.
+        """
+        rows = self._fulltext_search("case-search", text, count)
+        return [CaseSearchHit.from_row(row) for row in rows]
+
+    def fulltext_search_matters(
+        self, text: str, *, count: int = DEFAULT_SEARCH_COUNT
+    ) -> list[MatterSearchHit]:
+        """Search matters by free text with F2's full text search (``matter-search``).
+
+        This is the primary way to search matters. Use ``search_matters`` to
+        look up matters by exact properties such as matter number or case
+        number.
+
+        Matters the F2 user has no access to are left out of the result.
+
+        Args:
+            text: The text to search for.
+            count: The maximum number of hits F2 should return.
+
+        Raises:
+            ValueError: If ``text`` is empty or ``count`` is not positive.
+        """
+        rows = self._fulltext_search("matter-search", text, count)
+        return [MatterSearchHit.from_row(row) for row in rows]
+
     def search_cases(
         self,
         *,
@@ -332,6 +376,29 @@ class F2Client:
         url = expand_template(href, {name: given.get(name) for name in names})
         query = {k: v for k, v in given.items() if k not in names}
         return self._connection.get_csv(url, query)
+
+    def _fulltext_search(
+        self, rel: str, text: str, count: int
+    ) -> list[dict[str, str | None]]:
+        """Run a full text search and return the result rows.
+
+        The service is called as ``<url>?q=<text>&count=<count>``. Should the
+        installation publish it as an OpenSearch URL template, ``{searchTerms}``
+        (or ``{q}``) and ``{count}`` are filled instead.
+        """
+        if not text or not text.strip():
+            raise ValueError("Give a text to search for")
+        if count < 1:
+            raise ValueError("count must be at least 1")
+        href = self._connection.index.href(rel)
+        names = template_parameters(href)
+        if not names:
+            return self._connection.get_search_rows(
+                href, {"q": text, "count": str(count)}
+            )
+        values = {"searchTerms": text, "q": text, "count": count}
+        url = expand_template(href, {name: values.get(name) for name in names})
+        return self._connection.get_search_rows(url)
 
     def _stream_to_file(self, url: str, path: str | PathLike[str]) -> Path:
         target = Path(path)

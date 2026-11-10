@@ -21,6 +21,8 @@ SERVICE_INDEX = {
     },
     f"{REL}matter-by-id": {"href": f"{BASE}/matters/{{id}}"},
     f"{REL}document-by-id": {"href": f"{BASE}/documents/{{id}}"},
+    f"{REL}case-search": {"href": f"{BASE}/searches/cases"},
+    f"{REL}matter-search": {"href": f"{BASE}/searches/matters"},
     f"{REL}case-search-filter": {"href": f"{BASE}/search/cases"},
     f"{REL}matter-search-filter": {"href": f"{BASE}/search/matters"},
     f"{REL}party-by-id": {"href": f"{BASE}/parties/{{id}}"},
