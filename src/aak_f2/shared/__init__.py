@@ -1,9 +1,11 @@
 """Shared functionality that all departments can use and contribute to."""
 
+from ._references import GroupRef, PartyRef
 from .client import F2Client
 from .config import F2Config
 from .errors import (
     F2AccessDeniedError,
+    F2AccessWarning,
     F2ConfigError,
     F2ConnectionError,
     F2Error,
@@ -28,10 +30,12 @@ __all__ = [
     "Case",
     "CaseSearchHit",
     "F2AccessDeniedError",
+    "F2AccessWarning",
     "CollectionItem",
     "Document",
     "EnumerationItem",
     "F2Client",
+    "GroupRef",
     "F2Config",
     "F2ConfigError",
     "F2ConnectionError",
@@ -44,4 +48,5 @@ __all__ = [
     "MatterSearchHit",
     "Party",
     "PartyItem",
+    "PartyRef",
 ]

@@ -20,6 +20,7 @@ SERVICE_INDEX = {
         "title": "Case by number",
     },
     f"{REL}matter-by-id": {"href": f"{BASE}/matters/{{id}}"},
+    f"{REL}create-case": {"href": f"{BASE}/cases/create"},
     f"{REL}document-by-id": {"href": f"{BASE}/documents/{{id}}"},
     f"{REL}case-search": {"href": f"{BASE}/opensearch/cases"},
     f"{REL}matter-search": {"href": f"{BASE}/opensearch/matters"},

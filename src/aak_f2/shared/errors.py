@@ -153,3 +153,13 @@ def _xml_fields(body: bytes) -> dict[str, str]:
         for child in root
         if child.text and child.text.strip()
     }
+
+
+class F2AccessWarning(UserWarning):
+    """A resource was created or changed with access that may hide it.
+
+    Issued, for example, when a matter has an access level other than ``All``
+    and no involved parties, so caseworkers cannot see it in the F2 client.
+    Filter it like any other warning, e.g.
+    ``warnings.simplefilter("error", F2AccessWarning)`` to stop instead.
+    """

@@ -91,6 +91,37 @@ the F2 user. For OpenSearch services such as `case-search`, the index points to
 a description document; `opensearch_template("case-search")` returns the URL
 template of the real search from it.
 
+### Creating cases, matters and documents
+
+In F2, a case holds matters ("akter"), and documents belong to a matter.
+
+```python
+case = client.create_case(
+    "Ansøgning om tilskud",
+    responsible="AZ12345",  # login, e-mail, party number or a party object
+    properties={"KeywordCode": "00.07.00"},  # other F2 input parameters
+)
+matter = client.create_matter(
+    case, "Ansøgning", access_level="Involved", involved_parties=["AZ12345"]
+)
+document = client.create_document(matter, "ansøgning.pdf")  # path or bytes
+client.update_matter(matter, title="Ansøgning (modtaget)")
+```
+
+Parties are given as a login (`"AZ12345"`), an e-mail, a party number (`26`),
+a `Party`/`PartyItem`, or an F2 PartyReference such as
+`{"PartyNo": 26, "OrganizationNo": 5}`. Security groups are given by name or
+as an F2 PartyGroupReference.
+
+Creation uses F2's Post-Once-Exactly pattern, so the request that sends the
+data is retried safely after network errors.
+
+A matter with an access level other than `All` and no involved parties is only
+visible to involved parties, so caseworkers may not find it in the F2 client.
+`create_matter` and `update_matter` then issue an `F2AccessWarning` that shows
+how to set involved parties. The matter is created anyway. Turn the warning
+into an error with `warnings.simplefilter("error", F2AccessWarning)`.
+
 ### Errors
 
 All errors are subclasses of `aak_f2.shared.F2Error`. HTTP errors from F2 are
@@ -140,4 +171,8 @@ except F2NotFoundError:
 
 `aak_f2.mbu.F2Client` extends the shared client with the method names of MBU's
 GetOrganized client (`get_case_metadata`, `document_metadata`, `download`,
-`convert_to_pdf`, `contact_lookup`), so MBU processes can switch ESDH by changing the import.
+`convert_to_pdf`, `contact_lookup`, `upload_document`), so MBU processes can switch ESDH by changing the import.
+
+`upload_document(case_id=..., filename=..., data=...)` creates a new matter on
+the case for each upload, titled after the file; pass `access_level` and
+`involved_parties` for that matter, or `matter_id` to use an existing matter.

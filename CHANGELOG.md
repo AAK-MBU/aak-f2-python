@@ -12,6 +12,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 - Filtered search for cases and matters (`search_cases`, `search_matters`) and party lookup by ID, CPR/CVR number and login (`get_party`, `get_party_by_cpr`, `get_party_by_login`) in `aak_f2.shared`.
 - Full text search for cases and matters (`fulltext_search_cases`, `fulltext_search_matters`) with a `count` for the maximum number of hits, using the URL template from the OpenSearch description behind F2's `case-search` and `matter-search` services (`opensearch_template`).
 - `service_index` and `service_url` in `aak_f2.shared.F2Client` to list the services in F2's service index and fill their URL templates.
+- Creating cases, matters and documents and updating matters in `aak_f2.shared.F2Client` (`create_case`, `create_matter`, `create_document`, `update_matter`) using F2's Post-Once-Exactly pattern, with `F2AccessWarning` when a matter is only visible to its (missing) involved parties.
+- `upload_document` in `aak_f2.mbu.F2Client`, creating a matter per upload unless `matter_id` is given.
 - `contact_lookup` in `aak_f2.mbu.F2Client`.
 - `F2NotFoundError` (404) and `F2AccessDeniedError` (403) as subclasses of `F2HTTPError`.
 - `aak_f2.mbu.F2Client` with the read methods of MBU's GetOrganized client (`get_case_metadata`, `document_metadata`, `download`, `convert_to_pdf`).

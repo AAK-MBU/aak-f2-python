@@ -1,18 +1,28 @@
 """``F2Client``: the shared client for reading, searching and looking up F2 data."""
 
+import json
+import warnings
+from collections.abc import Callable, Iterable, Mapping
 from os import PathLike
 from pathlib import Path
-from typing import Self
+from typing import Any, Self
 from urllib.parse import urljoin
 
 import requests
 
 from . import _search_results
 from ._http import OPENSEARCH_ACCEPT, Connection
+from ._references import (
+    GroupRef,
+    PartyRef,
+    group_references,
+    party_reference,
+    party_references,
+)
 from ._rels import CASEFILE_REL_PREFIX, full_rel
 from ._service_index import expand_template, template_parameters
 from .config import F2Config
-from .errors import F2Error, F2LinkNotFoundError
+from .errors import F2AccessWarning, F2Error, F2LinkNotFoundError
 from .models import (
     Case,
     CaseSearchHit,
@@ -30,6 +40,9 @@ type MatterRef = Matter | int | str
 type DocumentRef = Document | int | str
 
 _CHUNK_SIZE = 1024 * 1024
+
+MAX_TITLE_LENGTH = 255
+"""Maximum length of case, matter and document titles in F2."""
 
 DEFAULT_SEARCH_COUNT = 100
 """Default maximum number of hits from the full text searches."""
@@ -409,7 +422,206 @@ class F2Client:
         url = self._connection.index.expand("party-by-login", login=login)
         return Party.from_element(self._connection.get_xml(url))
 
+    # ------------------------------------------------------------------ create
+
+    def create_case(
+        self,
+        title: str,
+        *,
+        responsible: PartyRef | None = None,
+        involved_parties: Iterable[PartyRef] | None = None,
+        security_groups: Iterable[GroupRef] | None = None,
+        properties: Mapping[str, Any] | None = None,
+    ) -> Case:
+        """Create a case and return it.
+
+        The case is created through the ``create-case`` service. It has no
+        matters; add them with ``create_matter``.
+
+        Args:
+            title: Case title (at most 255 characters).
+            responsible: The party responsible for the case.
+            involved_parties: The case parties ("sagens parter").
+            security_groups: Security groups, users or organizations that the
+                case access is restricted to. Without them, F2's own rules
+                decide who can see the case.
+            properties: Other input parameters of F2's case creation, by their
+                F2 name, e.g. ``{"KeywordCode": "00.07.00",
+                "ExternalAccessCode": "Open"}``. Party and group values must
+                be F2 reference objects here.
+
+        Raises:
+            ValueError: If ``title`` is empty or too long, or a reference is
+                invalid.
+        """
+        payload = self._payload(
+            title,
+            properties,
+            Responsible=_optional(party_reference, responsible),
+            InvolvedParties=_optional(party_references, involved_parties),
+            SecurityGroups=_optional(group_references, security_groups),
+        )
+        factory = self._connection.index.href("create-case")
+        location = self._connection.post_once_exactly(factory, json=payload)
+        return Case.from_element(self._connection.get_xml(location))
+
+    def create_matter(  # noqa: PLR0913 - the commonly needed matter properties
+        self,
+        case: CaseRef,
+        title: str,
+        *,
+        access_level: str | None = None,
+        involved_parties: Iterable[PartyRef] | None = None,
+        responsible: PartyRef | None = None,
+        properties: Mapping[str, Any] | None = None,
+    ) -> Matter:
+        """Create a matter on a case and return it.
+
+        Issues ``F2AccessWarning`` if the matter ends up with an access level
+        other than ``All`` and no involved parties, since only involved
+        parties can then see it in the F2 client. The matter is created
+        anyway.
+
+        Args:
+            case: The case to create the matter on.
+            title: Matter title (at most 255 characters).
+            access_level: ``All``, ``Unit`` or ``Involved``. When omitted, F2's
+                default applies.
+            involved_parties: The matter parties ("aktparter").
+            responsible: The party responsible for the matter.
+            properties: Other input parameters of F2's matter creation, by
+                their F2 name, e.g. ``{"Type": "Inbound", "Text": "<p>..</p>",
+                "CprNumber": "..."}``. ``Type`` defaults to ``Internal``.
+
+        Raises:
+            ValueError: If ``title`` is empty or too long, or a reference is
+                invalid.
+        """
+        payload = self._payload(
+            title,
+            {"Type": "Internal", **(properties or {})},
+            AccessLevel=access_level,
+            InvolvedParties=_optional(party_references, involved_parties),
+            Responsible=_optional(party_reference, responsible),
+        )
+        factory = self._follow(self._case(case), "create-matter")
+        location = self._connection.post_once_exactly(factory, json=payload)
+        matter = Matter.from_element(self._connection.get_xml(location))
+        _warn_if_hidden(matter, location)
+        return matter
+
+    def create_document(
+        self,
+        matter: MatterRef,
+        file: bytes | str | PathLike[str],
+        *,
+        filename: str | None = None,
+        title: str | None = None,
+        description: str | None = None,
+    ) -> Document:
+        """Upload a file as a new document on a matter and return the document.
+
+        Args:
+            matter: The matter to add the document to.
+            file: The file content, or the path of a file to upload.
+            filename: File name sent to F2. Its extension tells F2 the file
+                type. Required when ``file`` is bytes; defaults to the name
+                of the file otherwise.
+            title: Document title shown in F2. Defaults to the file name
+                without extension, as F2 recommends.
+            description: Document description.
+
+        Raises:
+            ValueError: If no file name is given for bytes, or it has no
+                extension.
+        """
+        if isinstance(file, bytes):
+            data = file
+        else:
+            path = Path(file)
+            data = path.read_bytes()
+            filename = filename or path.name
+        if not filename:
+            raise ValueError("Give a filename when uploading bytes")
+        if not Path(filename).suffix:
+            raise ValueError(
+                f"The filename {filename!r} needs an extension, so F2 knows the "
+                "file type"
+            )
+        fields: list[tuple[str, tuple[str | None, bytes, str]]] = [
+            ("Title", _text_part(title or Path(filename).stem)),
+        ]
+        if description:
+            fields.append(("Description", _text_part(description)))
+        fields.append(("File", (filename, data, "application/octet-stream")))
+        factory = self._follow(self._matter(matter), "create-document")
+        location = self._connection.post_once_exactly(factory, files=fields)
+        return Document.from_element(self._connection.get_xml(location))
+
+    # ------------------------------------------------------------------ update
+
+    def update_matter(  # noqa: PLR0913 - the commonly changed matter properties
+        self,
+        matter: MatterRef,
+        *,
+        title: str | None = None,
+        access_level: str | None = None,
+        involved_parties: Iterable[PartyRef] | None = None,
+        responsible: PartyRef | None = None,
+        properties: Mapping[str, Any] | None = None,
+    ) -> Matter:
+        """Change properties of a matter and return the updated matter.
+
+        Only the given properties are changed. ``involved_parties`` replaces
+        the whole list of involved parties.
+
+        Args:
+            matter: The matter to change.
+            title: New title.
+            access_level: New access level: ``All``, ``Unit`` or ``Involved``.
+            involved_parties: New list of involved parties.
+            responsible: New responsible party.
+            properties: Other properties by their F2 name, encoded as F2's
+                PATCH expects, e.g. ``{"Deadline": "2026-12-01T00:00:00"}``.
+
+        Raises:
+            ValueError: If nothing is to be changed, or a reference is invalid.
+        """
+        values: dict[str, Any] = {
+            "Title": title,
+            "AccessLevel": access_level,
+            "InvolvedParties": _optional(party_references, involved_parties),
+            "Responsible": _optional(party_reference, responsible),
+            **(properties or {}),
+        }
+        operations = [
+            {"op": "replace", "path": f"/{name}", "value": value}
+            for name, value in values.items()
+            if value is not None
+        ]
+        if not operations:
+            raise ValueError("Give at least one property to change")
+        current = self._matter(matter)
+        url = self._follow(current, "self")
+        self._connection.patch_json(url, operations)
+        updated = Matter.from_element(self._connection.get_xml(url))
+        _warn_if_hidden(updated, url)
+        return updated
+
     # ------------------------------------------------------------------ helpers
+
+    @staticmethod
+    def _payload(
+        title: str, properties: Mapping[str, Any] | None, **values: Any
+    ) -> dict[str, Any]:
+        """Build a creation payload; ``None`` values are left out."""
+        if not title or not title.strip():
+            raise ValueError("Give a title")
+        if len(title) > MAX_TITLE_LENGTH:
+            raise ValueError(f"The title is longer than {MAX_TITLE_LENGTH} characters")
+        payload = {"Title": title, **(properties or {})}
+        payload.update({k: v for k, v in values.items() if v is not None})
+        return payload
 
     def _search(
         self, rel: str, criteria: dict[str, object]
@@ -481,3 +693,38 @@ class F2Client:
             where = f"{type(resource).__name__} {resource.id}"
             raise F2LinkNotFoundError(rel, where)
         return link.href
+
+
+def _optional[T, R](convert: Callable[[T], R], value: T | None) -> R | None:
+    return None if value is None else convert(value)
+
+
+def _text_part(value: str) -> tuple[None, bytes, str]:
+    return (None, value.encode("utf-8"), "text/plain; charset=utf-8")
+
+
+def _warn_if_hidden(matter: Matter, url: str) -> None:
+    """Warn if only involved parties can see ``matter`` and it has none."""
+    if matter.access_level in (None, "All") or matter.involved_parties:
+        return
+    patch = json.dumps(
+        [
+            {
+                "op": "replace",
+                "path": "/InvolvedParties",
+                "value": [{"Login": "<login>"}],
+            }
+        ]
+    )
+    warnings.warn(
+        f"Matter {matter.id} was created or updated with AccessLevel "
+        f"{matter.access_level!r} and no involved parties, so caseworkers may "
+        "not see it in the F2 client. Set involved parties with:\n"
+        f'  client.update_matter({matter.id}, involved_parties=["<login>"])\n'
+        "or directly against F2-REST:\n"
+        f"  PATCH {url}\n"
+        "  Content-Type: application/json-patch\n"
+        f"  {patch}",
+        F2AccessWarning,
+        stacklevel=3,
+    )

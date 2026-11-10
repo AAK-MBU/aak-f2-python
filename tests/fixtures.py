@@ -35,6 +35,8 @@ CASE_XML = """\
   <Closed>false</Closed>
   <Link href="https://f2.example/rest/cases/1046444" rel="self" title="Case 1" />
   <Link href="https://f2.example/rest/cases/1046444/matters" rel="down" />
+  <Link href="https://f2.example/rest/cases/1046444/create-matter"
+        rel="http://cbrain.com/casefile/rel/create-matter" />
   <Link href="https://f2.example/rest/cases/1046444/structure"
         rel="http://cbrain.com/casefile/rel/structure" />
   <InvolvedParties>
@@ -93,8 +95,11 @@ MATTER_XML = """\
     <Receiver><Name>cBrain DK</Name><EMail>dk@cbrain.dk</EMail></Receiver>
     <Receiver><Name>cBrain US</Name><EMail>info@cbrain.com</EMail></Receiver>
   </Receivers>
+  <Link href="https://f2.example/rest/matters/517886" rel="self" />
   <Link href="https://f2.example/rest/matters/517886/documents" rel="down" />
   <Link href="https://f2.example/rest/cases/1046444" rel="up" />
+  <Link href="https://f2.example/rest/matters/517886/create-document"
+        rel="http://cbrain.com/casefile/rel/create-document" />
 </Matter>
 """
 

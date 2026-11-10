@@ -1,5 +1,6 @@
 """HTTP connection to F2-REST: authentication, retries and error handling."""
 
+import json as json_module
 import re
 import time
 import xml.etree.ElementTree as ET
@@ -80,7 +81,7 @@ class Connection:
         """Resolve ``href`` against the service index URL."""
         return urljoin(self.config.service_index_url, href)
 
-    def request(
+    def request(  # noqa: PLR0913 - keyword-only options of one HTTP request
         self,
         method: str,
         url: str,
@@ -88,6 +89,7 @@ class Connection:
         authenticated: bool = True,
         accept: str = XML_ACCEPT,
         headers: Mapping[str, str] | None = None,
+        repeatable: bool = False,
         **kwargs: Any,
     ) -> requests.Response:
         """Send a request and return the successful response.
@@ -103,6 +105,8 @@ class Connection:
             authenticated: Whether to send the bearer token.
             accept: Value of the ``Accept`` header.
             headers: Extra headers.
+            repeatable: Retry after network errors even though ``method`` is
+                not idempotent, e.g. for a Post-Once-Exactly request.
             **kwargs: Passed on to ``requests.Session.request``.
 
         Raises:
@@ -128,7 +132,8 @@ class Connection:
                     **kwargs,
                 )
             except (requests.ConnectionError, requests.Timeout) as exc:
-                if method in IDEMPOTENT_METHODS and attempt < self._max_retries:
+                retry = repeatable or method in IDEMPOTENT_METHODS
+                if retry and attempt < self._max_retries:
                     self._wait(attempt)
                     attempt += 1
                     continue
@@ -162,6 +167,62 @@ class Connection:
             raise F2Error(
                 f"F2 returned invalid XML from {response.url}: {exc}"
             ) from exc
+
+    def post_once_exactly(
+        self,
+        factory_url: str,
+        *,
+        json: Any = None,
+        files: Any = None,
+    ) -> str:
+        """Create a resource with F2's Post-Once-Exactly pattern.
+
+        An empty POST to ``factory_url`` returns the URL of a new POE resource
+        in ``Location``. The payload is then POSTed to that URL; F2 answers 201
+        (or 303 when the same POST is repeated) with the URL of the created
+        resource in ``Location``. Because the second POST may be repeated
+        safely, it is retried after network errors.
+
+        Args:
+            factory_url: The ``create-*`` link to create the resource with.
+            json: Payload sent as JSON.
+            files: Payload sent as ``multipart/form-data``, in the form
+                ``requests`` takes for ``files``. Contents must be bytes, so
+                the request can be repeated.
+
+        Returns:
+            The absolute URL of the created resource.
+
+        Raises:
+            F2Error: If F2 does not return a ``Location``.
+        """
+        poe = self.request(
+            "POST",
+            factory_url,
+            headers={"Content-Type": "application/x-www-form-urlencoded"},
+            data=b"",
+            allow_redirects=False,
+            repeatable=True,
+        )
+        poe_url = _location(poe, factory_url)
+        created = self.request(
+            "POST",
+            poe_url,
+            json=json,
+            files=files,
+            allow_redirects=False,
+            repeatable=True,
+        )
+        return _location(created, poe_url)
+
+    def patch_json(self, url: str, operations: list[dict[str, Any]]) -> None:
+        """PATCH a resource with a JSON patch document (``replace`` operations)."""
+        self.request(
+            "PATCH",
+            url,
+            data=json_module.dumps(operations).encode("utf-8"),
+            headers={"Content-Type": "application/json-patch"},
+        )
 
     def get_bytes(self, url: str) -> bytes:
         """GET binary content, e.g. a document file."""
@@ -213,6 +274,16 @@ class Connection:
 
     def _wait(self, attempt: int) -> None:
         self._sleep(self._backoff * 2**attempt)
+
+
+def _location(response: requests.Response, base_url: str) -> str:
+    location = response.headers.get("Location")
+    if not location:
+        raise F2Error(
+            f"F2 answered HTTP {response.status_code} without a Location from "
+            f"{base_url}"
+        )
+    return urljoin(base_url, location)
 
 
 def _text(response: requests.Response) -> str:
