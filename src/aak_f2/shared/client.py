@@ -560,6 +560,51 @@ class F2Client:
 
     # ------------------------------------------------------------------ update
 
+    def update_case(  # noqa: PLR0913 - the commonly changed case properties
+        self,
+        case: CaseRef,
+        *,
+        title: str | None = None,
+        responsible: PartyRef | None = None,
+        involved_parties: Iterable[PartyRef] | None = None,
+        security_groups: Iterable[GroupRef] | None = None,
+        properties: Mapping[str, Any] | None = None,
+    ) -> Case:
+        """Change properties of a case and return the updated case.
+
+        The case is changed with a JSON patch sent to its ``self`` link. Only
+        the given properties are changed; ``involved_parties`` and
+        ``security_groups`` replace the whole list.
+
+        Args:
+            case: The case to change.
+            title: New title (at most 255 characters).
+            responsible: New responsible party.
+            involved_parties: New list of case parties ("sagens parter").
+            security_groups: New list of security groups, users or
+                organizations that the case access is restricted to.
+            properties: Other properties by their F2 name, encoded as F2's
+                PATCH expects, e.g. ``{"Keyword": "00.07.00",
+                "ExternalAccess": "Open", "ExternalId": "..."}``. The names
+                are the case property names, which differ from some creation
+                parameter names (``Keyword``, not ``KeywordCode``). Read-only
+                properties such as ``CaseNumber`` cannot be changed.
+
+        Raises:
+            ValueError: If nothing is to be changed, ``title`` is empty or too
+                long, or a reference is invalid.
+        """
+        operations = _replace_operations(
+            title,
+            properties,
+            Responsible=_optional(party_reference, responsible),
+            InvolvedParties=_optional(party_references, involved_parties),
+            SecurityGroups=_optional(group_references, security_groups),
+        )
+        url = self._follow(self._case(case), "self")
+        self._connection.patch_json(url, operations)
+        return Case.from_element(self._connection.get_xml(url))
+
     def update_matter(  # noqa: PLR0913 - the commonly changed matter properties
         self,
         matter: MatterRef,
@@ -577,7 +622,7 @@ class F2Client:
 
         Args:
             matter: The matter to change.
-            title: New title.
+            title: New title (at most 255 characters).
             access_level: New access level: ``All``, ``Unit`` or ``Involved``.
             involved_parties: New list of involved parties.
             responsible: New responsible party.
@@ -585,22 +630,16 @@ class F2Client:
                 PATCH expects, e.g. ``{"Deadline": "2026-12-01T00:00:00"}``.
 
         Raises:
-            ValueError: If nothing is to be changed, or a reference is invalid.
+            ValueError: If nothing is to be changed, ``title`` is empty or too
+                long, or a reference is invalid.
         """
-        values: dict[str, Any] = {
-            "Title": title,
-            "AccessLevel": access_level,
-            "InvolvedParties": _optional(party_references, involved_parties),
-            "Responsible": _optional(party_reference, responsible),
-            **(properties or {}),
-        }
-        operations = [
-            {"op": "replace", "path": f"/{name}", "value": value}
-            for name, value in values.items()
-            if value is not None
-        ]
-        if not operations:
-            raise ValueError("Give at least one property to change")
+        operations = _replace_operations(
+            title,
+            properties,
+            AccessLevel=access_level,
+            InvolvedParties=_optional(party_references, involved_parties),
+            Responsible=_optional(party_reference, responsible),
+        )
         current = self._matter(matter)
         url = self._follow(current, "self")
         self._connection.patch_json(url, operations)
@@ -615,10 +654,7 @@ class F2Client:
         title: str, properties: Mapping[str, Any] | None, **values: Any
     ) -> dict[str, Any]:
         """Build a creation payload; ``None`` values are left out."""
-        if not title or not title.strip():
-            raise ValueError("Give a title")
-        if len(title) > MAX_TITLE_LENGTH:
-            raise ValueError(f"The title is longer than {MAX_TITLE_LENGTH} characters")
+        _check_title(title)
         payload = {"Title": title, **(properties or {})}
         payload.update({k: v for k, v in values.items() if v is not None})
         return payload
@@ -693,6 +729,30 @@ class F2Client:
             where = f"{type(resource).__name__} {resource.id}"
             raise F2LinkNotFoundError(rel, where)
         return link.href
+
+
+def _check_title(title: str) -> None:
+    if not title or not title.strip():
+        raise ValueError("Give a title")
+    if len(title) > MAX_TITLE_LENGTH:
+        raise ValueError(f"The title is longer than {MAX_TITLE_LENGTH} characters")
+
+
+def _replace_operations(
+    title: str | None, properties: Mapping[str, Any] | None, **values: Any
+) -> list[dict[str, Any]]:
+    """Build JSON patch ``replace`` operations; ``None`` values are left out."""
+    if title is not None:
+        _check_title(title)
+    merged = {"Title": title, **values, **(properties or {})}
+    operations = [
+        {"op": "replace", "path": f"/{name}", "value": value}
+        for name, value in merged.items()
+        if value is not None
+    ]
+    if not operations:
+        raise ValueError("Give at least one property to change")
+    return operations
 
 
 def _optional[T, R](convert: Callable[[T], R], value: T | None) -> R | None:

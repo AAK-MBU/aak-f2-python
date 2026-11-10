@@ -91,7 +91,7 @@ the F2 user. For OpenSearch services such as `case-search`, the index points to
 a description document; `opensearch_template("case-search")` returns the URL
 template of the real search from it.
 
-### Creating cases, matters and documents
+### Creating and updating cases, matters and documents
 
 In F2, a case holds matters ("akter"), and documents belong to a matter.
 
@@ -106,7 +106,13 @@ matter = client.create_matter(
 )
 document = client.create_document(matter, "ansøgning.pdf")  # path or bytes
 client.update_matter(matter, title="Ansøgning (modtaget)")
+client.update_case(case, responsible="AZ67890", properties={"Keyword": "00.07.00"})
 ```
+
+`update_case` and `update_matter` change only the given properties; a list
+(involved parties, security groups) replaces the whole list. Other properties
+in `properties` use F2's property names and PATCH encoding, which for cases
+differ from some creation parameters (`Keyword` instead of `KeywordCode`).
 
 Parties are given as a login (`"AZ12345"`), an e-mail, a party number (`26`),
 a `Party`/`PartyItem`, or an F2 PartyReference such as

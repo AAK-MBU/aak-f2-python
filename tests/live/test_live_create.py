@@ -51,6 +51,9 @@ class LiveCreateTest(unittest.TestCase):
         updated = client.update_matter(matter, title="Akt for alle (omdøbt)")
         self.assertEqual(updated.title, "Akt for alle (omdøbt)")
 
+        renamed = client.update_case(case, title=f"{case.title} (omdøbt)")
+        self.assertEqual(renamed.title, f"{case.title} (omdøbt)")
+
     @unittest.skipUnless(LOGIN, "F2_LIVE_LOGIN is not set")
     def test_mbu_upload_document_with_involved_parties(self):
         client = MbuF2Client.from_env()

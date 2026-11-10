@@ -281,6 +281,78 @@ class CreateDocumentTest(unittest.TestCase):
         self.assertEqual(self.session.calls_to("POST", DOCUMENT_FACTORY), [])
 
 
+class UpdateCaseTest(unittest.TestCase):
+    def test_patches_the_self_link_and_reads_the_case_again(self):
+        session = standard_session()
+        session.add("GET", CASE_URL, make_response(200, CASE_XML))
+        session.add("PATCH", CASE_URL, make_response(200))
+        case = client_with(session).update_case(
+            1046444,
+            title="Ny titel",
+            responsible="AZ12345",
+            involved_parties=[26, "borger@example.com"],
+            security_groups=["SG4"],
+            properties={"Keyword": "00.07.00", "ExternalId": "X-1"},
+        )
+        self.assertEqual(case.id, 1046444)
+        (call,) = session.calls_to("PATCH", CASE_URL)
+        self.assertEqual(call["headers"]["Content-Type"], "application/json-patch")
+        self.assertEqual(
+            json.loads(call["data"]),
+            [
+                {"op": "replace", "path": "/Title", "value": "Ny titel"},
+                {
+                    "op": "replace",
+                    "path": "/Responsible",
+                    "value": {"Login": "AZ12345"},
+                },
+                {
+                    "op": "replace",
+                    "path": "/InvolvedParties",
+                    "value": [{"PartyNo": 26}, {"EMail": "borger@example.com"}],
+                },
+                {
+                    "op": "replace",
+                    "path": "/SecurityGroups",
+                    "value": [{"Name": "SG4"}],
+                },
+                {"op": "replace", "path": "/Keyword", "value": "00.07.00"},
+                {"op": "replace", "path": "/ExternalId", "value": "X-1"},
+            ],
+        )
+        # One GET to resolve the ID, one to read the updated case.
+        self.assertEqual(len(session.calls_to("GET", CASE_URL)), 2)
+
+    def test_case_object_is_not_read_before_patching(self):
+        session = standard_session()
+        session.add("GET", CASE_URL, make_response(200, CASE_XML))
+        session.add("PATCH", CASE_URL, make_response(204))
+        client = client_with(session)
+        case = client.get_case(1046444)
+        client.update_case(case, responsible=PartyItem(name="Lise", party_number=118))
+        (call,) = session.calls_to("PATCH", CASE_URL)
+        self.assertEqual(
+            json.loads(call["data"]),
+            [{"op": "replace", "path": "/Responsible", "value": {"PartyNo": 118}}],
+        )
+        self.assertEqual(len(session.calls_to("GET", CASE_URL)), 2)
+
+    def test_invalid_input_sends_nothing(self):
+        session = standard_session()
+        client = client_with(session)
+        for kwargs in (
+            {},
+            {"title": ""},
+            {"title": "x" * 256},
+            {"involved_parties": "AZ1"},
+            {"security_groups": "SG4"},
+            {"responsible": True},
+        ):
+            with self.subTest(kwargs=kwargs), self.assertRaises(ValueError):
+                client.update_case(1046444, **kwargs)
+        self.assertEqual(session.calls_to("PATCH", CASE_URL), [])
+
+
 class UpdateMatterTest(unittest.TestCase):
     def test_patches_given_properties(self):
         session = standard_session()
@@ -314,6 +386,10 @@ class UpdateMatterTest(unittest.TestCase):
     def test_requires_a_change(self):
         with self.assertRaises(ValueError):
             client_with(standard_session()).update_matter(517886)
+
+    def test_rejects_too_long_title(self):
+        with self.assertRaises(ValueError):
+            client_with(standard_session()).update_matter(517886, title="x" * 256)
 
     def test_warns_when_still_hidden(self):
         session = standard_session()
