@@ -22,6 +22,14 @@ CASE_XML = """\
       <Code>Emneord_Issuetyper_Change request</Code>
     </Keyword>
   </Keywords>
+  <JournalPlan>
+    <Title>Kommunens styrelse</Title>
+    <Code>00.07.00</Code>
+  </JournalPlan>
+  <ProcessInstruction>
+    <Title>Sager vedr. generelle forhold</Title>
+    <Code>G01</Code>
+  </ProcessInstruction>
   <Responsible>
     <Name>James Wolt</Name>
     <EMail>jw@cbrain.dk</EMail>

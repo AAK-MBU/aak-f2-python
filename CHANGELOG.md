@@ -13,6 +13,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 - Full text search for cases and matters (`fulltext_search_cases`, `fulltext_search_matters`) with a `count` for the maximum number of hits, using the URL template from the OpenSearch description behind F2's `case-search` and `matter-search` services (`opensearch_template`).
 - `service_index` and `service_url` in `aak_f2.shared.F2Client` to list the services in F2's service index and fill their URL templates.
 - Creating cases, matters and documents and updating cases and matters in `aak_f2.shared.F2Client` (`create_case`, `create_matter`, `create_document`, `update_case`, `update_matter`) using F2's Post-Once-Exactly pattern, with `F2AccessWarning` when a matter is only visible to its (missing) involved parties.
+- `journal_plan_code` (KLE number) and `process_instruction_code` (KLE handlingsfacet) in `create_case` and `update_case`, and `journal_plan` and `process_instruction` on `Case`.
 - `upload_document` in `aak_f2.mbu.F2Client`, creating a matter per upload unless `matter_id` is given.
 - `contact_lookup` in `aak_f2.mbu.F2Client`.
 - `F2NotFoundError` (404) and `F2AccessDeniedError` (403) as subclasses of `F2HTTPError`.

@@ -63,7 +63,7 @@ class _Linked:
 
 @dataclass(frozen=True)
 class EnumerationItem:
-    """A value of an F2 enumeration, e.g. a keyword (KLE number).
+    """A value of an F2 enumeration, e.g. a keyword or a journal plan (KLE).
 
     Attributes:
         title: Displayed title.
@@ -356,8 +356,12 @@ class Case(_Linked):
         cpr_number: CPR/CVR number of a party related to the case.
         external_id: Customer-specific external ID.
         f2_guid: Global identifier of the case.
-        keyword: First keyword (KLE number), if any.
+        keyword: First keyword ("emneord"), if any.
         keywords: All keywords.
+        journal_plan: The KLE number ("journalplan"); its ``code`` is the
+            number, e.g. ``"00.07.00"``.
+        process_instruction: The KLE "handlingsfacet"; its ``code`` is the
+            facet, e.g. ``"G01"``.
         responsible: Party responsible for the case.
         involved_parties: The case parties ("sagens parter").
         deadline: Deadline of the case.
@@ -378,6 +382,8 @@ class Case(_Linked):
     f2_guid: str | None = None
     keyword: EnumerationItem | None = None
     keywords: tuple[EnumerationItem, ...] = ()
+    journal_plan: EnumerationItem | None = None
+    process_instruction: EnumerationItem | None = None
     responsible: PartyItem | None = None
     involved_parties: tuple[PartyItem, ...] = ()
     deadline: datetime | None = None
@@ -392,6 +398,8 @@ class Case(_Linked):
         """Build the case from a ``<Case>`` element (case or case structure)."""
         keyword = _xml.child(element, "Keyword")
         keywords = _xml.child(element, "Keywords")
+        journal_plan = _xml.child(element, "JournalPlan")
+        process_instruction = _xml.child(element, "ProcessInstruction")
         matters = _xml.child(element, "Matters")
         return cls(
             id=_xml.integer(element, "Id"),
@@ -408,6 +416,12 @@ class Case(_Linked):
                 EnumerationItem.from_element(item)
                 for item in _xml.children(keywords, "Keyword")
             ),
+            journal_plan=None
+            if journal_plan is None
+            else EnumerationItem.from_element(journal_plan),
+            process_instruction=None
+            if process_instruction is None
+            else EnumerationItem.from_element(process_instruction),
             responsible=_party(element, "Responsible"),
             involved_parties=_parties(element, "InvolvedParties", "InvolvedParty"),
             deadline=_xml.date_time(element, "Deadline"),

@@ -25,6 +25,8 @@ class CaseTest(unittest.TestCase):
         self.assertEqual(case.created_date, datetime(2022, 2, 3, 15, 31, 26, 293000))
         self.assertEqual(case.keyword.code, "Emneord_Issuetyper_Change request")
         self.assertEqual(len(case.keywords), 1)
+        self.assertEqual(case.journal_plan.code, "00.07.00")
+        self.assertEqual(case.process_instruction.code, "G01")
         self.assertEqual(case.responsible.name, "James Wolt")
         self.assertEqual(case.responsible.party_number, 37301)
         self.assertIsNone(case.responsible.cvr_p)

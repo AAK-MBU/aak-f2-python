@@ -98,21 +98,32 @@ In F2, a case holds matters ("akter"), and documents belong to a matter.
 ```python
 case = client.create_case(
     "Ansøgning om tilskud",
+    journal_plan_code="00.07.00",  # KLE number
+    process_instruction_code="G01",  # KLE handlingsfacet
     responsible="AZ12345",  # login, e-mail, party number or a party object
-    properties={"KeywordCode": "00.07.00"},  # other F2 input parameters
+    properties={"ExternalAccessCode": "Open"},  # other F2 input parameters
 )
 matter = client.create_matter(
     case, "Ansøgning", access_level="Involved", involved_parties=["AZ12345"]
 )
 document = client.create_document(matter, "ansøgning.pdf")  # path or bytes
 client.update_matter(matter, title="Ansøgning (modtaget)")
-client.update_case(case, responsible="AZ67890", properties={"Keyword": "00.07.00"})
+client.update_case(case, journal_plan_code="00.07.01", responsible="AZ67890")
 ```
+
+The KLE classification of a case is given with two arguments:
+
+| Argument | F2 property | Meaning |
+| --- | --- | --- |
+| `journal_plan_code` | `JournalPlanCode` (patched as `/JournalPlan`) | The **KLE number** ("journalplan"), e.g. `00.07.00` |
+| `process_instruction_code` | `ProcessInstructionCode` (patched as `/ProcessInstruction`) | The **KLE handlingsfacet**, e.g. `G01` |
+
+They are read back as `case.journal_plan.code` and `case.process_instruction.code`.
 
 `update_case` and `update_matter` change only the given properties; a list
 (involved parties, security groups) replaces the whole list. Other properties
 in `properties` use F2's property names and PATCH encoding, which for cases
-differ from some creation parameters (`Keyword` instead of `KeywordCode`).
+differ from the creation parameters (`Keyword` instead of `KeywordCode`).
 
 Parties are given as a login (`"AZ12345"`), an e-mail, a party number (`26`),
 a `Party`/`PartyItem`, or an F2 PartyReference such as

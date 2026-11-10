@@ -124,6 +124,8 @@ class CreateCaseTest(unittest.TestCase):
         session.add("GET", CASE_URL, make_response(200, CASE_XML))
         client_with(session).create_case(
             "Ny sag",
+            journal_plan_code="00.07.00",
+            process_instruction_code="G01",
             responsible="AZ12345",
             involved_parties=[26, "borger@example.com", {"PartyNo": 7}],
             security_groups=["SG4", {"PartyNumber": 9}],
@@ -135,6 +137,8 @@ class CreateCaseTest(unittest.TestCase):
             {
                 "Title": "Ny sag",
                 "KeywordCode": "00.07.00",
+                "JournalPlanCode": "00.07.00",
+                "ProcessInstructionCode": "G01",
                 "Responsible": {"Login": "AZ12345"},
                 "InvolvedParties": [
                     {"PartyNo": 26},
@@ -289,6 +293,8 @@ class UpdateCaseTest(unittest.TestCase):
         case = client_with(session).update_case(
             1046444,
             title="Ny titel",
+            journal_plan_code="00.07.00",
+            process_instruction_code="G01",
             responsible="AZ12345",
             involved_parties=[26, "borger@example.com"],
             security_groups=["SG4"],
@@ -301,6 +307,8 @@ class UpdateCaseTest(unittest.TestCase):
             json.loads(call["data"]),
             [
                 {"op": "replace", "path": "/Title", "value": "Ny titel"},
+                {"op": "replace", "path": "/JournalPlan", "value": "00.07.00"},
+                {"op": "replace", "path": "/ProcessInstruction", "value": "G01"},
                 {
                     "op": "replace",
                     "path": "/Responsible",

@@ -424,10 +424,12 @@ class F2Client:
 
     # ------------------------------------------------------------------ create
 
-    def create_case(
+    def create_case(  # noqa: PLR0913 - the central case properties
         self,
         title: str,
         *,
+        journal_plan_code: str | None = None,
+        process_instruction_code: str | None = None,
         responsible: PartyRef | None = None,
         involved_parties: Iterable[PartyRef] | None = None,
         security_groups: Iterable[GroupRef] | None = None,
@@ -440,15 +442,19 @@ class F2Client:
 
         Args:
             title: Case title (at most 255 characters).
+            journal_plan_code: The KLE number of the case ("journalplan"),
+                e.g. ``"00.07.00"``. Sent as F2's ``JournalPlanCode``.
+            process_instruction_code: The KLE "handlingsfacet" of the case,
+                e.g. ``"G01"``. Sent as F2's ``ProcessInstructionCode``.
             responsible: The party responsible for the case.
             involved_parties: The case parties ("sagens parter").
             security_groups: Security groups, users or organizations that the
                 case access is restricted to. Without them, F2's own rules
                 decide who can see the case.
             properties: Other input parameters of F2's case creation, by their
-                F2 name, e.g. ``{"KeywordCode": "00.07.00",
-                "ExternalAccessCode": "Open"}``. Party and group values must
-                be F2 reference objects here.
+                F2 name, e.g. ``{"KeywordCode": "...",
+                "DeletionActionCode": "B", "ExternalAccessCode": "Open"}``.
+                Party and group values must be F2 reference objects here.
 
         Raises:
             ValueError: If ``title`` is empty or too long, or a reference is
@@ -457,6 +463,8 @@ class F2Client:
         payload = self._payload(
             title,
             properties,
+            JournalPlanCode=journal_plan_code,
+            ProcessInstructionCode=process_instruction_code,
             Responsible=_optional(party_reference, responsible),
             InvolvedParties=_optional(party_references, involved_parties),
             SecurityGroups=_optional(group_references, security_groups),
@@ -565,6 +573,8 @@ class F2Client:
         case: CaseRef,
         *,
         title: str | None = None,
+        journal_plan_code: str | None = None,
+        process_instruction_code: str | None = None,
         responsible: PartyRef | None = None,
         involved_parties: Iterable[PartyRef] | None = None,
         security_groups: Iterable[GroupRef] | None = None,
@@ -579,14 +589,18 @@ class F2Client:
         Args:
             case: The case to change.
             title: New title (at most 255 characters).
+            journal_plan_code: New KLE number of the case ("journalplan"),
+                e.g. ``"00.07.00"``. Sent as a patch of ``/JournalPlan``.
+            process_instruction_code: New KLE "handlingsfacet" of the case,
+                e.g. ``"G01"``. Sent as a patch of ``/ProcessInstruction``.
             responsible: New responsible party.
             involved_parties: New list of case parties ("sagens parter").
             security_groups: New list of security groups, users or
                 organizations that the case access is restricted to.
             properties: Other properties by their F2 name, encoded as F2's
-                PATCH expects, e.g. ``{"Keyword": "00.07.00",
+                PATCH expects, e.g. ``{"Keyword": "...",
                 "ExternalAccess": "Open", "ExternalId": "..."}``. The names
-                are the case property names, which differ from some creation
+                are the case property names, which differ from the creation
                 parameter names (``Keyword``, not ``KeywordCode``). Read-only
                 properties such as ``CaseNumber`` cannot be changed.
 
@@ -597,6 +611,8 @@ class F2Client:
         operations = _replace_operations(
             title,
             properties,
+            JournalPlan=journal_plan_code,
+            ProcessInstruction=process_instruction_code,
             Responsible=_optional(party_reference, responsible),
             InvolvedParties=_optional(party_references, involved_parties),
             SecurityGroups=_optional(group_references, security_groups),

@@ -22,6 +22,8 @@ REQUIRED = (
 CONFIGURED = all(os.environ.get(name) for name in REQUIRED)
 WRITE = os.environ.get("F2_LIVE_WRITE") == "1"
 LOGIN = os.environ.get("F2_LIVE_LOGIN")
+KLE = os.environ.get("F2_LIVE_KLE")
+FACET = os.environ.get("F2_LIVE_FACET")
 
 
 @unittest.skipUnless(CONFIGURED and WRITE, "F2_LIVE_WRITE=1 is not set")
@@ -31,10 +33,16 @@ class LiveCreateTest(unittest.TestCase):
         stamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         case = client.create_case(
             f"aak-f2 live test {stamp}",
+            journal_plan_code=KLE or None,
+            process_instruction_code=FACET or None,
             responsible=LOGIN or None,
         )
         print(f"\ncase: {case.id} {case.case_number}")
         self.assertIsNotNone(case.id)
+        if KLE:
+            self.assertEqual(case.journal_plan.code, KLE)
+        if FACET:
+            self.assertEqual(case.process_instruction.code, FACET)
 
         with warnings.catch_warnings():
             warnings.simplefilter("error", F2AccessWarning)
