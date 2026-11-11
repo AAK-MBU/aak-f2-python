@@ -98,10 +98,16 @@ uses for the extension fields of the case and matter windows:
 
 ```python
 case = client.get_case(1046444)
-client.set_extension_fields(case, {"sagstype": "Borgersag"})
+client.set_extension_fields(case, {"Sagstype": "Borger"})
+client.get_extension_fields(case)  # {"Sagstype": "Borger"}
 for extension in client.get_extension_data(case):
-    print(extension.process_name, extension.data)  # data is the <Data> element
+    print(extension.process_name, extension.fields)  # extension.data: <Data>
 ```
+
+F2 stores extension fields under the process name `CaseExtensionData` as a
+dictionary of `Entry` elements with a `Key` and a `Value`; `Extension.fields`
+holds those entries, and `get_extension_fields` merges them for a case or
+matter.
 
 `set_extension_fields` merges the given fields into the existing ones; the
 names must match extension fields set up in the F2 installation. Both methods

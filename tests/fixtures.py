@@ -229,6 +229,13 @@ EXTENSIONS_XML = """\
     <Data><Size xmlns="http://123">10</Size></Data>
   </Extension>
   <Extension>
+    <ProcessName>CaseExtensionData</ProcessName>
+    <Data xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"><Dictionary><Entries>
+      <Entry Key="Sagstype"><Value xsi:type="xsd:string">Borger</Value></Entry>
+      <Entry Key="Tom"><Value xsi:type="xsd:string" /></Entry>
+    </Entries></Dictionary></Data>
+  </Extension>
+  <Extension>
     <ProcessName>Xyz</ProcessName>
     <Data><Position xmlns="http://123">20,10</Position></Data>
   </Extension>

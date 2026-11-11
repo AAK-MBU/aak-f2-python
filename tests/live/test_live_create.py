@@ -76,8 +76,7 @@ class LiveCreateTest(unittest.TestCase):
         print(f"\ncase {case.id}: extension data after setting {name}={value}:")
         for extension in extensions:
             print(ET.tostring(extension.raw, encoding="unicode"))
-        dumped = "".join(ET.tostring(e.raw, encoding="unicode") for e in extensions)
-        self.assertIn(value, dumped)
+        self.assertEqual(client.get_extension_fields(case).get(name), value)
 
     @unittest.skipUnless(LOGIN, "F2_LIVE_LOGIN is not set")
     def test_mbu_upload_document_with_involved_parties(self):

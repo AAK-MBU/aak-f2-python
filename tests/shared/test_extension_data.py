@@ -26,10 +26,20 @@ class GetExtensionDataTest(unittest.TestCase):
         session = standard_session()
         session.add("GET", CASE_EXTENSIONS, make_response(200, EXTENSIONS_XML))
         extensions = client_with(session).get_extension_data(case())
-        self.assertEqual([e.process_name for e in extensions], ["Abc", "Xyz"])
+        self.assertEqual(
+            [e.process_name for e in extensions], ["Abc", "CaseExtensionData", "Xyz"]
+        )
         (size,) = list(extensions[0].data)
         self.assertEqual(_xml.local_name(size.tag), "Size")
         self.assertEqual(size.text, "10")
+        self.assertEqual(extensions[0].fields, {})
+        self.assertEqual(extensions[1].fields, {"Sagstype": "Borger", "Tom": None})
+
+    def test_extension_fields_are_merged(self):
+        session = standard_session()
+        session.add("GET", CASE_EXTENSIONS, make_response(200, EXTENSIONS_XML))
+        fields = client_with(session).get_extension_fields(case())
+        self.assertEqual(fields, {"Sagstype": "Borger", "Tom": None})
 
     def test_missing_link(self):
         bare = Case(id=1)
@@ -42,14 +52,14 @@ class SetExtensionFieldsTest(unittest.TestCase):
         session = standard_session()
         session.add("POST", CASE_UPDATE, make_response(200))
         client_with(session).set_extension_fields(
-            case(), {"sagstype": "Borgersag", "Andet": None}
+            case(), {"Sagstype": "Borger", "Andet": None}
         )
         (call,) = session.calls_to("POST", CASE_UPDATE)
         self.assertEqual(
             call["json"],
             {
                 "Fields": [
-                    {"Name": "sagstype", "Value": "Borgersag"},
+                    {"Name": "Sagstype", "Value": "Borger"},
                     {"Name": "Andet", "Value": None},
                 ]
             },
@@ -64,7 +74,7 @@ class SetExtensionFieldsTest(unittest.TestCase):
     def test_invalid_fields_send_nothing(self):
         session = standard_session()
         client = client_with(session)
-        for fields in ({}, "sagstype", {"": "x"}, {" ": "x"}):
+        for fields in ({}, "Sagstype", {"": "x"}, {" ": "x"}):
             with self.subTest(fields=fields), self.assertRaises(ValueError):
                 client.set_extension_fields(case(), fields)
         self.assertEqual(session.calls_to("POST", CASE_UPDATE), [])

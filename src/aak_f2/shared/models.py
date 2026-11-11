@@ -194,24 +194,52 @@ class Extension:
     F2 stores the extension fields shown in the case and matter windows as
     custom XML data. F2 puts no constraint on the XML.
 
+    Extension fields are stored under the process name ``CaseExtensionData``
+    as a dictionary::
+
+        <Data>
+          <Dictionary><Entries>
+            <Entry Key="Sagstype"><Value xsi:type="xsd:string">Borger</Value></Entry>
+          </Entries></Dictionary>
+        </Data>
+
     Attributes:
-        process_name: The key the data is stored under.
+        process_name: The key the data is stored under, e.g.
+            ``"CaseExtensionData"``.
+        fields: The entries of a ``<Dictionary>`` in the data, by ``Key``,
+            e.g. ``{"Sagstype": "Borger"}``. Values are text, or ``None`` if
+            empty. Empty if the data is not a dictionary.
         data: The ``<Data>`` element; its children are the stored XML.
         raw: The parsed ``<Extension>`` element.
     """
 
     process_name: str | None
+    fields: Mapping[str, str | None] = field(default_factory=dict)
     data: ET.Element | None = field(default=None, repr=False, compare=False)
     raw: ET.Element | None = field(default=None, repr=False, compare=False)
 
     @classmethod
     def from_element(cls, element: ET.Element) -> Self:
         """Build the extension from an ``<Extension>`` element."""
+        data = _xml.child(element, "Data")
         return cls(
             process_name=_xml.text(element, "ProcessName"),
-            data=_xml.child(element, "Data"),
+            fields={} if data is None else _dictionary_entries(data),
+            data=data,
             raw=element,
         )
+
+
+def _dictionary_entries(data: ET.Element) -> dict[str, str | None]:
+    """Return the ``Dictionary/Entries/Entry`` values of ``data`` by ``Key``."""
+    entries: dict[str, str | None] = {}
+    for dictionary in _xml.children(data, "Dictionary"):
+        for block in _xml.children(dictionary, "Entries"):
+            for entry in _xml.children(block, "Entry"):
+                key = entry.get("Key")
+                if key is not None:
+                    entries[key] = _xml.text(entry, "Value")
+    return entries
 
 
 def parse_extensions(element: ET.Element) -> list[Extension]:

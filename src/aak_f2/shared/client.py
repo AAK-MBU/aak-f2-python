@@ -753,6 +753,23 @@ class F2Client:
         element = self._connection.get_xml(self._follow(resource, "extension-data"))
         return parse_extensions(element)
 
+    def get_extension_fields(self, resource: Case | Matter) -> dict[str, str | None]:
+        """Return the extension fields of a case or matter by field name.
+
+        The fields of all extension data dictionaries are merged, e.g.
+        ``{"Sagstype": "Borger"}``. Values are text, or ``None`` if empty.
+
+        Raises:
+            F2LinkNotFoundError: If the resource has no ``extension-data`` link.
+
+        Example:
+            >>> client.get_extension_fields(case).get("Sagstype")
+        """
+        fields: dict[str, str | None] = {}
+        for extension in self.get_extension_data(resource):
+            fields.update(extension.fields)
+        return fields
+
     def set_extension_fields(
         self, resource: Case | Matter, fields: Mapping[str, str | None]
     ) -> None:
@@ -767,7 +784,8 @@ class F2Client:
             resource: The case or matter, read with ``get_case`` or
                 ``get_matter``.
             fields: Field values by field name, e.g.
-                ``{"sagstype": "Borgersag"}``.
+                ``{"Sagstype": "Borger"}``. Names and values must match the
+                field and its allowed values in F2.
 
         Raises:
             ValueError: If no fields are given or a field name is empty.
@@ -775,10 +793,10 @@ class F2Client:
                 extension fields.
 
         Example:
-            >>> client.set_extension_fields(case, {"sagstype": "Borgersag"})
+            >>> client.set_extension_fields(case, {"Sagstype": "Borger"})
         """
         if isinstance(fields, str) or not fields:
-            raise ValueError('Give the fields as a mapping, e.g. {"sagstype": "..."}')
+            raise ValueError('Give the fields as a mapping, e.g. {"Sagstype": "..."}')
         if any(not name or not name.strip() for name in fields):
             raise ValueError("An extension field name cannot be empty")
         rel = (
