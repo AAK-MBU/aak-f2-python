@@ -47,6 +47,10 @@ CASE_XML = """\
         rel="http://cbrain.com/casefile/rel/create-matter" />
   <Link href="https://f2.example/rest/cases/1046444/structure"
         rel="http://cbrain.com/casefile/rel/structure" />
+  <Link href="https://f2.example/rest/cases/1046444/extension-data"
+        rel="http://cbrain.com/casefile/rel/extension-data" />
+  <Link href="https://f2.example/rest/cases/1046444/update-extension-data"
+        rel="http://cbrain.com/casefile/rel/update-case-extension-data" />
   <InvolvedParties>
     <InvolvedParty>
       <Name>Kirsten Svanholm-Nielsen</Name>
@@ -108,6 +112,10 @@ MATTER_XML = """\
   <Link href="https://f2.example/rest/cases/1046444" rel="up" />
   <Link href="https://f2.example/rest/matters/517886/create-document"
         rel="http://cbrain.com/casefile/rel/create-document" />
+  <Link href="https://f2.example/rest/matters/517886/extension-data"
+        rel="http://cbrain.com/casefile/rel/extension-data" />
+  <Link href="https://f2.example/rest/matters/517886/update-extension-data"
+        rel="http://cbrain.com/casefile/rel/update-matter-extension-data" />
 </Matter>
 """
 
@@ -212,4 +220,19 @@ USER_XML = """\
   <Initials>AZ12345</Initials>
   <Link href="https://f2.example/rest/parties/400776" rel="self" />
 </User>
+"""
+
+EXTENSIONS_XML = """\
+<Extensions xmlns="http://cbrain.com/casefile/schema/">
+  <Extension>
+    <ProcessName>Abc</ProcessName>
+    <Data><Size xmlns="http://123">10</Size></Data>
+  </Extension>
+  <Extension>
+    <ProcessName>Xyz</ProcessName>
+    <Data><Position xmlns="http://123">20,10</Position></Data>
+  </Extension>
+  <Link href="https://f2.example/rest/cases/1046444/extension-data" rel="self"
+        type="application/vnd.cbrain.casefile+xml" title="Extensions" />
+</Extensions>
 """

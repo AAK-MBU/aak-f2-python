@@ -188,6 +188,39 @@ def parse_collection(element: ET.Element) -> list[CollectionItem]:
 
 
 @dataclass(frozen=True)
+class Extension:
+    """A named piece of custom XML data ("extension data") on a case or matter.
+
+    F2 stores the extension fields shown in the case and matter windows as
+    custom XML data. F2 puts no constraint on the XML.
+
+    Attributes:
+        process_name: The key the data is stored under.
+        data: The ``<Data>`` element; its children are the stored XML.
+        raw: The parsed ``<Extension>`` element.
+    """
+
+    process_name: str | None
+    data: ET.Element | None = field(default=None, repr=False, compare=False)
+    raw: ET.Element | None = field(default=None, repr=False, compare=False)
+
+    @classmethod
+    def from_element(cls, element: ET.Element) -> Self:
+        """Build the extension from an ``<Extension>`` element."""
+        return cls(
+            process_name=_xml.text(element, "ProcessName"),
+            data=_xml.child(element, "Data"),
+            raw=element,
+        )
+
+
+def parse_extensions(element: ET.Element) -> list[Extension]:
+    """Return the ``<Extension>`` children of an ``<Extensions>`` element."""
+    items = _xml.children(element, "Extension")
+    return [Extension.from_element(item) for item in items]
+
+
+@dataclass(frozen=True)
 class Document(_Linked):
     """Metadata of a document on a matter.
 

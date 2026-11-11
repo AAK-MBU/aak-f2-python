@@ -91,6 +91,23 @@ the F2 user. For OpenSearch services such as `case-search`, the index points to
 a description document; `opensearch_template("case-search")` returns the URL
 template of the real search from it.
 
+### Extension data
+
+Cases and matters can carry custom XML data ("extension data"), which F2 also
+uses for the extension fields of the case and matter windows:
+
+```python
+case = client.get_case(1046444)
+client.set_extension_fields(case, {"sagstype": "Borgersag"})
+for extension in client.get_extension_data(case):
+    print(extension.process_name, extension.data)  # data is the <Data> element
+```
+
+`set_extension_fields` merges the given fields into the existing ones; the
+names must match extension fields set up in the F2 installation. Both methods
+take a case or matter read with `get_case` or `get_matter`. The filtered
+search cannot search extension data; searching it takes an F2 custom query.
+
 ### Calling F2-REST directly
 
 For parts of F2-REST the client has no method for, `request` sends any request

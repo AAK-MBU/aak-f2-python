@@ -29,11 +29,13 @@ from .models import (
     CaseSearchHit,
     CollectionItem,
     Document,
+    Extension,
     Link,
     Matter,
     MatterSearchHit,
     Party,
     parse_collection,
+    parse_extensions,
 )
 
 type CaseRef = Case | int | str
@@ -736,6 +738,64 @@ class F2Client:
         updated = Matter.from_element(self._connection.get_xml(url))
         _warn_if_hidden(updated, url)
         return updated
+
+    # ------------------------------------------------------------------ extension data
+
+    def get_extension_data(self, resource: Case | Matter) -> list[Extension]:
+        """Return the custom XML data ("extension data") of a case or matter.
+
+        Follows the ``extension-data`` link of the resource. Read the case or
+        matter with ``get_case`` or ``get_matter`` first.
+
+        Raises:
+            F2LinkNotFoundError: If the resource has no ``extension-data`` link.
+        """
+        element = self._connection.get_xml(self._follow(resource, "extension-data"))
+        return parse_extensions(element)
+
+    def set_extension_fields(
+        self, resource: Case | Matter, fields: Mapping[str, str | None]
+    ) -> None:
+        """Set extension fields on a case or matter.
+
+        The fields are merged into the existing extension fields, so fields
+        that are not given keep their value. The names must match extension
+        fields set up in the F2 installation. The request may be repeated
+        safely, so it is retried after network errors.
+
+        Args:
+            resource: The case or matter, read with ``get_case`` or
+                ``get_matter``.
+            fields: Field values by field name, e.g.
+                ``{"sagstype": "Borgersag"}``.
+
+        Raises:
+            ValueError: If no fields are given or a field name is empty.
+            F2LinkNotFoundError: If the resource has no link for updating
+                extension fields.
+
+        Example:
+            >>> client.set_extension_fields(case, {"sagstype": "Borgersag"})
+        """
+        if isinstance(fields, str) or not fields:
+            raise ValueError('Give the fields as a mapping, e.g. {"sagstype": "..."}')
+        if any(not name or not name.strip() for name in fields):
+            raise ValueError("An extension field name cannot be empty")
+        rel = (
+            "update-case-extension-data"
+            if isinstance(resource, Case)
+            else "update-matter-extension-data"
+        )
+        payload = {
+            "Fields": [{"Name": name, "Value": value} for name, value in fields.items()]
+        }
+        self._connection.request(
+            "POST",
+            self._follow(resource, rel),
+            json=payload,
+            accept="*/*",
+            repeatable=True,
+        )
 
     # ------------------------------------------------------------------ helpers
 
