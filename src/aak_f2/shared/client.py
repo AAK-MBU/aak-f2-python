@@ -2,6 +2,7 @@
 
 import json
 import warnings
+import xml.etree.ElementTree as ET
 from collections.abc import Callable, Iterable, Mapping
 from os import PathLike
 from pathlib import Path
@@ -182,6 +183,79 @@ class F2Client:
             template = urljoin(response.url or href, found)
         self._opensearch_templates[key] = template
         return template
+
+    # ------------------------------------------------------------------ raw access
+
+    def request(  # noqa: PLR0913 - keyword-only options of one HTTP request
+        self,
+        method: str,
+        href: str | Link,
+        *,
+        template_params: Mapping[str, object] | None = None,
+        accept: str = "*/*",
+        headers: Mapping[str, str] | None = None,
+        **kwargs: Any,
+    ) -> requests.Response:
+        """Send a request to any F2-REST URL and return the response.
+
+        For the parts of F2-REST the client has no method for yet, e.g. a link
+        found on a case. The request is authenticated and handled like the
+        client's own: the token is renewed on 401, 423 and 503 are retried,
+        redirects are followed, and errors raise ``F2HTTPError``. Network
+        errors are retried only for idempotent methods such as ``GET``.
+
+        Args:
+            method: HTTP method, e.g. ``"GET"``, ``"POST"`` or ``"PATCH"``.
+            href: A ``Link`` or a URL. A relative URL is resolved against the
+                service index URL. A URL template is filled with
+                ``template_params``.
+            template_params: Values for the ``{name}`` parameters of a URL
+                template. Values are URL-encoded.
+            accept: Value of the ``Accept`` header. F2 resources answer in XML
+                with ``application/vnd.cbrain.casefile+xml``.
+            headers: Extra headers.
+            **kwargs: Passed on to ``requests``, e.g. ``params``, ``json``,
+                ``data``, ``files`` or ``stream``.
+
+        Raises:
+            F2HTTPError: If F2 answers with an error status.
+            F2ConnectionError: If F2 cannot be reached.
+            ValueError: If a URL template parameter has no value.
+
+        Example:
+            >>> link = case.link("update-case-extension-data")
+            >>> client.request(
+            ...     "POST", link, json={"Fields": [{"Name": "x", "Value": "y"}]}
+            ... )
+        """
+        return self._connection.request(
+            method,
+            _resolve_href(href, template_params),
+            accept=accept,
+            headers=headers,
+            **kwargs,
+        )
+
+    def get_xml(self, href: str | Link, **template_params: object) -> ET.Element:
+        """GET an F2 resource as XML and return its root element.
+
+        Build a model from the element where one exists, e.g.
+        ``Case.from_element(element)``.
+
+        Args:
+            href: A ``Link`` or a URL, as for ``request``.
+            **template_params: Values for the ``{name}`` parameters of a URL
+                template.
+
+        Raises:
+            F2HTTPError: If F2 answers with an error status.
+            F2Error: If the response is not XML.
+            ValueError: If a URL template parameter has no value.
+
+        Example:
+            >>> element = client.get_xml(case.link("extension-data"))
+        """
+        return self._connection.get_xml(_resolve_href(href, template_params))
 
     # ------------------------------------------------------------------ cases
 
@@ -769,6 +843,16 @@ def _replace_operations(
     if not operations:
         raise ValueError("Give at least one property to change")
     return operations
+
+
+def _resolve_href(
+    href: str | Link, template_params: Mapping[str, object] | None
+) -> str:
+    """Return the URL of ``href``, with its URL template filled if it has one."""
+    url = href.href if isinstance(href, Link) else href
+    if template_parameters(url) or template_params:
+        url = expand_template(url, template_params or {})
+    return url
 
 
 def _optional[T, R](convert: Callable[[T], R], value: T | None) -> R | None:

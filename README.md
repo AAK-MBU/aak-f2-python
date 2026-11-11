@@ -91,6 +91,28 @@ the F2 user. For OpenSearch services such as `case-search`, the index points to
 a description document; `opensearch_template("case-search")` returns the URL
 template of the real search from it.
 
+### Calling F2-REST directly
+
+For parts of F2-REST the client has no method for, `request` sends any request
+to a link or URL, and `get_xml` reads an XML resource:
+
+```python
+case = client.get_case(1046444)
+element = client.get_xml(case.link("extension-data"))  # xml.etree Element
+client.request(
+    "POST",
+    case.link("update-case-extension-data"),
+    json={"Fields": [{"Name": "FieldName", "Value": "Value"}]},
+)
+rows = client.request("GET", url, params={"P1": "v"}, accept="text/csv").text
+```
+
+The requests are authenticated and retried like the client's own, and errors
+raise `F2HTTPError`. A URL template is filled from `template_params` in
+`request` and from keyword arguments in `get_xml`. `request` returns the
+`requests.Response`; other keyword arguments (`params`, `json`, `data`,
+`files`, `stream`) are passed on to `requests`.
+
 ### Creating and updating cases, matters and documents
 
 In F2, a case holds matters ("akter"), and documents belong to a matter.
